@@ -4,6 +4,14 @@ Kept by [release-please](https://github.com/googleapis/release-please) from the
 conventional-commit subjects on `main`. Everything below 0.3.0 was written by
 hand, because the two releases before it predate that setup.
 
+## [0.3.1](https://github.com/thejoeejoee/pr-lens-gitlab-backend/compare/v0.3.0...v0.3.1) (2026-09-14)
+
+
+### Bug Fixes
+
+* **ci:** tag releases vX.Y.Z, not &lt;package&gt;-vX.Y.Z ([9cc5de5](https://github.com/thejoeejoee/pr-lens-gitlab-backend/commit/9cc5de59641522714f5b35d2696d4053de2a97a9))
+* **ci:** tag releases vX.Y.Z, not &lt;package&gt;-vX.Y.Z ([ff5821f](https://github.com/thejoeejoee/pr-lens-gitlab-backend/commit/ff5821f1c06c273d24eafe5c281baaa189e81367))
+
 ## [0.3.0](https://github.com/thejoeejoee/pr-lens-gitlab-backend/compare/pr-lens-gitlab-backend-v0.2.0...pr-lens-gitlab-backend-v0.3.0) (2026-09-14)
 
 
