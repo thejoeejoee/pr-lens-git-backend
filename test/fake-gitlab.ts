@@ -23,6 +23,8 @@ export type FakeGitLab = {
   /** Requests answered 429 before one is allowed. */
   throttles: number;
   readonly commits: number;
+  /** The user-agent of the last request, for asserting who called. */
+  readonly lastUserAgent: string | undefined;
   close: () => Promise<void>;
 };
 
@@ -33,7 +35,12 @@ const EXISTS = "A file with this name already exists";
 
 export const startFakeGitLab = async (): Promise<FakeGitLab> => {
   const files = new Map<string, { content: string; lastCommitId: string }>();
-  const state = { branchCollisions: 0, throttles: 0, commits: 0 };
+  const state = {
+    branchCollisions: 0,
+    throttles: 0,
+    commits: 0,
+    userAgent: undefined as string | undefined,
+  };
 
   const server: Server = createServer((req, res) => {
     const answer = (status: number, body: unknown): void => {
@@ -44,6 +51,8 @@ export const startFakeGitLab = async (): Promise<FakeGitLab> => {
       });
       res.end(text);
     };
+
+    state.userAgent = req.headers["user-agent"];
 
     if (state.throttles > 0) {
       state.throttles -= 1;
@@ -168,6 +177,9 @@ export const startFakeGitLab = async (): Promise<FakeGitLab> => {
     },
     get commits() {
       return state.commits;
+    },
+    get lastUserAgent() {
+      return state.userAgent;
     },
     close: () =>
       new Promise<void>((resolve) => {

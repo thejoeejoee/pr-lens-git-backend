@@ -48,6 +48,18 @@ That second one is the whole compare-and-swap, so it is worth checking on an
 unusual install. A push that lands twice on the same revision means it is being
 ignored.
 
+## Finding this server in GitLab's logs
+
+Every call names itself:
+
+```
+pr-lens-gitlab-backend/0.2.0 (lens-7b9f4-xk2)
+```
+
+The bracketed part is the instance — the pod name in a cluster — so a rate limit
+or an audit entry points at one replica rather than at "the canvas server".
+`USER_AGENT_HOST` overrides it, and empties it if you would rather send nothing.
+
 ## Rate limits
 
 Self-managed instances often meter the API harder than gitlab.com. When GitLab

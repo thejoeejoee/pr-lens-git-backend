@@ -96,6 +96,7 @@ export class GitLabStore implements Store {
         headers: {
           "private-token": this.#settings.token,
           accept: "application/json",
+          "user-agent": this.#settings.userAgent,
           ...(body === undefined
             ? {}
             : { "content-type": "application/json" }),

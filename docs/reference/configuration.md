@@ -26,6 +26,7 @@ with no safe default is a startup failure, not a 500 on the first request.
 | `GITLAB_PREFIX` | `canvases` | Directory inside the repository. |
 | `GITLAB_AUTHOR_NAME` | `pr-lens-gitlab-backend` | Commit author name. |
 | `GITLAB_AUTHOR_EMAIL` | `pr-lens-gitlab-backend@localhost` | Commit author email. |
+| `USER_AGENT_HOST` | the machine's host name | The host named in the `User-Agent` sent to GitLab. Empty omits it. |
 
 ## Limits and caches
 
@@ -49,3 +50,22 @@ with no safe default is a startup failure, not a 500 on the first request.
 `config.*`, and documents the Kubernetes-only settings: `secretName`,
 `ingress`, `httpRoute`, `resources`, `extraEnv`, `extraVolumes`,
 `extraVolumeMounts`.
+
+## What GitLab sees
+
+Every call carries a `User-Agent` naming this server, its version and the
+instance:
+
+```
+pr-lens-gitlab-backend/0.2.0 (lens-7b9f4-xk2)
+```
+
+The host is in the parenthesised comment because that is what RFC 9110 reserves
+for it — `@` is not a legal character in a product version, however common the
+habit. It is there so a rate limit or an audit entry can be traced to one replica
+rather than to "the canvas server".
+
+In a pod that host is the pod name, which is exactly what you want. On a laptop it
+is the machine's name, which may be somebody's name and may be going to
+gitlab.com — hence `USER_AGENT_HOST`, which replaces it, or empties it for a plain
+`pr-lens-gitlab-backend/0.2.0`.
