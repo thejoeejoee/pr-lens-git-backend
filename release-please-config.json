@@ -5,7 +5,16 @@
   "packages": {
     ".": {
       "extra-files": [
-        "charts/pr-lens-gitlab-backend/Chart.yaml",
+        {
+          "type": "yaml",
+          "path": "charts/pr-lens-gitlab-backend/Chart.yaml",
+          "jsonpath": "$.version"
+        },
+        {
+          "type": "yaml",
+          "path": "charts/pr-lens-gitlab-backend/Chart.yaml",
+          "jsonpath": "$.appVersion"
+        },
         "docs/how-to/deploy-with-helm.md"
       ]
     }

@@ -78,8 +78,34 @@ release-please rewrites four things, so nothing has to be bumped by hand:
 | `CHANGELOG.md` | a section per release, grouped by commit type |
 
 The two files it does not own are `release-please-config.json`, which lists the
-annotated ones, and `.release-please-manifest.json`, which records where the last
+files above, and `.release-please-manifest.json`, which records where the last
 release got to.
+
+### Chart.yaml carries no comments, on purpose
+
+`extra-files` updates a file one of two ways. A plain path uses the *generic*
+updater, which rewrites lines carrying an `x-release-please-version` annotation and
+leaves everything else alone — that is how the `--version` in the install example
+is kept current. A typed entry parses the file, sets one jsonpath and writes it
+back out.
+
+Chart.yaml has to be the typed kind, because it needs **two** fields updated and
+the generic updater cannot be pointed at `appVersion`:
+
+```json
+{ "type": "yaml", "path": "charts/…/Chart.yaml", "jsonpath": "$.version" },
+{ "type": "yaml", "path": "charts/…/Chart.yaml", "jsonpath": "$.appVersion" }
+```
+
+Writing YAML back out loses every comment in the file and normalises the quoting.
+So Chart.yaml holds metadata and nothing else, and anything worth explaining about
+the chart's version lives here instead. Do not add comments to it: they will
+vanish at the next release, silently.
+
+The first attempt at this listed Chart.yaml as a plain path. release-please
+dispatched on the `.yaml` extension anyway, ignored the annotations, updated
+`version` and left `appVersion` a release behind — a chart that would have let
+`helm upgrade` succeed while installing the previous image.
 
 ## How the version is chosen
 
@@ -99,14 +125,16 @@ a fault.
 
 ## The check that still runs
 
-Three places carry the version and nothing publishes unless all three agree — a
-chart left behind would let `helm upgrade` succeed and silently install the
-previous image. `npm run check:versions` is that check; it runs in `verify` and
-again from `prepublishOnly`.
+Three places carry the version and nothing publishes unless all three agree.
+`npm run check:versions` is that check, and it runs in three places:
 
-release-please should keep them in step on its own. The check is there for when it
-does not: lose one of the `x-release-please-version` annotations and the release
-fails loudly instead of shipping a mismatch.
+- **`ci.yml`**, on every push and pull request — which is what checks the release
+  PR itself, and the one that was missing when Chart.yaml first went wrong
+- **`verify`** in the release, against the tag as well
+- **`prepublishOnly`**, so a publish from a laptop is no laxer
+
+release-please should keep them in step on its own. The check is for when it does
+not, so the answer is a red pull request rather than a quietly wrong chart.
 
 ## Chaining, and why it looks indirect
 
@@ -130,6 +158,12 @@ workflow would change the claim.
 | npm | `pr-lens-gitlab-backend`, holding `dist/` only — `prepare` builds it, so the sources never ship |
 | image | `ghcr.io/thejoeejoee/pr-lens-gitlab-backend:{version}`, plus `{major}.{minor}`, `{major}` and `latest`, for amd64 and arm64, with a build attestation |
 | chart | `oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend:{version}`, also attached to the run as an artifact |
+
+## Merging the release PR
+
+Squash it. Merging with a merge commit puts both the branch commit and the merge
+commit on `main` with the same subject, and release-please lists each of them, so
+the next changelog entry says everything twice.
 
 ## Re-running one
 
