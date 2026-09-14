@@ -151,6 +151,23 @@ also what keeps npm's trusted publisher working: the trust names `release.yml`
 and the `release` environment, it cannot be edited after the fact, and a reusable
 workflow would change the claim.
 
+### The tag has to be `vX.Y.Z` and nothing else
+
+`release.yml` reads the version out of the tag, so the tag name is load-bearing.
+Two settings keep it plain:
+
+```json
+"include-v-in-tag": true,
+"include-component-in-tag": false
+```
+
+Without the second, release-please names the tag after the package it released and
+the first 0.3.0 attempt came out as `pr-lens-gitlab-backend-v0.3.0`. The dispatch
+worked, the run started, and `verify` refused it — correctly, since that string is
+not a version — so nothing was published and the release looked silently lost.
+`check:versions` is what turned a wrong tag into a red run instead of a
+mystery.
+
 ## What lands where
 
 | | |
