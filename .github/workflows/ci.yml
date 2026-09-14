@@ -96,6 +96,22 @@ jobs:
             --set secretName=pr-lens-gitlab \
             --set httpRoute.enabled=true > /dev/null
 
+      - name: it renders with the cache sidecar
+        run: |
+          helm template lens charts/pr-lens-gitlab-backend \
+            --set config.gitlab.project=group/canvases \
+            --set secretName=pr-lens-gitlab \
+            --set cache.enabled=true > /dev/null
+
+      # VCL is a compiled language, so a typo in it is a crash loop rather than a
+      # warning. varnishd -C compiles and throws away, which is the cheapest way
+      # to find that out here instead of in a cluster.
+      - name: the VCL compiles
+        run: |
+          docker run --rm \
+            -v "$PWD/charts/pr-lens-gitlab-backend/files:/vcl:ro" \
+            varnish:9 varnishd -C -f /vcl/default.vcl > /dev/null
+
       - name: a gitlab store without a Secret is refused
         run: |
           if helm template lens charts/pr-lens-gitlab-backend \

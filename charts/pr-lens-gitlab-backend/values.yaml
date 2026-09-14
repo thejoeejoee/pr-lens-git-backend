@@ -69,6 +69,51 @@ httpRoute:
       # namespace: gateway-system
       # sectionName: https
 
+# An optional Vinyl Cache sidecar -- the CDN half, without a CDN.
+#
+# Turn it on and the Service and the route point at the cache instead of the
+# app, so there is one way in and nothing can bypass it. It needs no rules: the
+# server already says what may be cached with Cache-Control, and Vinyl reads
+# max-age and no-store itself, so the pictures are cached hard and the API and
+# the canvas page never are.
+cache:
+  enabled: false
+
+  image:
+    # The rename from Varnish Cache has not reached Docker Hub, where the image
+    # is still published as `varnish`. 9.x has no alpine variant yet.
+    repository: varnish
+    tag: "9.0.3"
+    pullPolicy: IfNotPresent
+
+  port: 8080
+
+  # Cached objects live in the container's heap, so keep this well under the
+  # memory limit below.
+  size: 256m
+
+  # The shared memory log. Vinyl defaults to 80m, which is more than a sidecar
+  # nobody runs varnishlog against needs, and it has to fit in workdirSize.
+  logSize: 8m
+
+  # /var/lib/varnish, as a memory-backed emptyDir -- which means it counts
+  # against the memory limit too. It must stay executable: varnishd compiles the
+  # VCL to a shared object in here and dlopens it.
+  workdirSize: 32Mi
+
+  resources:
+    requests:
+      cpu: 25m
+      memory: 384Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # Your own VCL, replacing the chart's. Empty means the default, which is worth
+  # reading before you override it: it is about twenty lines and most of them are
+  # comments. Point `image` elsewhere and this becomes that program's config.
+  vcl: ""
+
 resources:
   requests:
     cpu: 50m

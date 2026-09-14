@@ -3,6 +3,10 @@
 The chart is an OCI artifact beside the image. It renders a Deployment, a Service
 and one route — no ServiceAccount, no HPA, no PodDisruptionBudget.
 
+Optionally it also renders a cache sidecar: `cache.enabled=true` puts Vinyl Cache
+in the pod and points the Service at it. See
+[put a CDN in front](put-a-cdn-in-front.md#the-cache-sidecar).
+
 ## Make the Secret first
 
 The chart deliberately creates none: a token belongs to whatever manages your

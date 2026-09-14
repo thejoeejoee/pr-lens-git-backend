@@ -1,0 +1,13 @@
+{{- if .Values.cache.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pr-lens-gitlab-backend.fullname" . }}-cache
+  labels: {{- include "pr-lens-gitlab-backend.labels" . | nindent 4 }}
+data:
+  # A file rather than a heredoc in this template, so that it can be read on its
+  # own and compiled on its own -- VCL is a compiled language, and CI does
+  # exactly that with files/default.vcl on every change.
+  default.vcl: |
+{{ (.Values.cache.vcl | default (.Files.Get "files/default.vcl")) | indent 4 }}
+{{- end }}

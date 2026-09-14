@@ -10,7 +10,9 @@ spec:
   type: {{ .Values.service.type }}
   ports:
     - port: {{ .Values.service.port }}
-      targetPort: http
+      # Whatever is in front of the pod. With the cache on, the app port is not
+      # reachable through this Service at all.
+      targetPort: {{ if .Values.cache.enabled }}cache{{ else }}http{{ end }}
       protocol: TCP
       name: http
   selector: {{- include "pr-lens-gitlab-backend.selectorLabels" . | nindent 4 }}

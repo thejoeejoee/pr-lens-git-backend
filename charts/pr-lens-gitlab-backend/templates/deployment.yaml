@@ -80,10 +80,72 @@ spec:
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+        {{- if .Values.cache.enabled }}
+        # The cache reaches the app over the loopback they share, so the app port
+        # is never exposed once this is in front of it.
+        - name: cache
+          image: "{{ .Values.cache.image.repository }}:{{ .Values.cache.image.tag }}"
+          imagePullPolicy: {{ .Values.cache.image.pullPolicy }}
+          securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
+          # The image's entrypoint assembles varnishd from these two, and appends
+          # anything passed as args.
+          env:
+            - name: VARNISH_HTTP_PORT
+              value: {{ .Values.cache.port | quote }}
+            - name: VARNISH_SIZE
+              value: {{ .Values.cache.size | quote }}
+          args:
+            - -l
+            - {{ .Values.cache.logSize | quote }}
+          ports:
+            - name: cache
+              containerPort: {{ .Values.cache.port }}
+              protocol: TCP
+          # Its own probes, on its own port, through to the app behind it. A pod
+          # is ready only when every container is, so a wedged cache takes the
+          # pod out of the Service rather than serving errors from it.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: cache
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: cache
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources: {{- toYaml .Values.cache.resources | nindent 12 }}
+          volumeMounts:
+            - name: cache-config
+              mountPath: /etc/varnish
+              readOnly: true
+            - name: cache-workdir
+              mountPath: /var/lib/varnish
+            - name: cache-tmp
+              mountPath: /tmp
+        {{- end }}
       volumes:
         - name: tmp
           emptyDir:
             sizeLimit: 64Mi
+        {{- if .Values.cache.enabled }}
+        - name: cache-config
+          configMap:
+            name: {{ include "pr-lens-gitlab-backend.fullname" . }}-cache
+        - name: cache-workdir
+          # Memory-backed because varnishd mmaps its shared log here and wants it
+          # fast -- which also means this counts against the memory limit.
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.cache.workdirSize }}
+        - name: cache-tmp
+          emptyDir:
+            sizeLimit: 16Mi
+        {{- end }}
         {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

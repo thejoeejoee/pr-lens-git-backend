@@ -104,7 +104,10 @@ can be its name:
 | `/c/{id}.svg` | 60 s + ETag | 🔄 the embed address stays put, so it revalidates on the render's hash |
 | `/c/{id}` · `/api/canvas/…` | `no-store` | 🔒 the contract's own rule: no cache may keep a document under a secret address |
 
-Put a CDN in front and the only traffic reaching this server is the API.
+Put a CDN in front and the only traffic reaching this server is the API. No CDN
+to reach for? `cache.enabled=true` puts [Vinyl Cache](https://vinyl-cache.org) in
+the pod as a sidecar and points the Service at it — and it needs no path rules,
+because the headers above are already the whole policy.
 [How, and the one thing to get right](docs/how-to/put-a-cdn-in-front.md).
 
 ## 🔐 Security in one list
