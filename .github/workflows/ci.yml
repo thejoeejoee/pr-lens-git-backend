@@ -46,8 +46,11 @@ jobs:
       - run: npm run build
 
   docker:
-    # Builds the image on every change without pushing it, so a broken
-    # Dockerfile is a failed check rather than a failed release.
+    # Named for what it is, because a check called "docker" next to a workflow
+    # that does push images reads like a push. This one never does: it builds,
+    # boots the container and mints a canvas in it, then throws the image away.
+    # `push: true` appears once in this repository, in release.yml.
+    name: image (built and smoke-tested, never pushed)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
