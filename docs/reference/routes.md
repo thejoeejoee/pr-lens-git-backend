@@ -22,6 +22,7 @@ refused push changes nothing.
 
 | Route | Serves |
 | --- | --- |
+| `GET /` | An explanatory page: what this host is, how to point the CLI at it, and that links are the only permission. Names nothing about the deployment, so it is the same page for everyone and cacheable as such. `INDEX_PAGE=false` turns it into a `NOT_FOUND`. |
 | `GET /c/{id}` | The canvas page: every tile, both themes, no script and nothing off this origin. |
 | `GET /c/{id}.svg` | The hero as an SVG. `?theme=dark` for the other half. |
 | `GET /images/{id}/{name}-{hash}.svg` | One picture, addressed by its own hash. |

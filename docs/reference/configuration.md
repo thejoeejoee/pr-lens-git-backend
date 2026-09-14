@@ -12,6 +12,7 @@ with no safe default is a startup failure, not a 500 on the first request.
 | `PUBLIC_URL` | — | Origin the answers' URLs are built from. Unset, and each answer names whichever host the request arrived on. |
 | `TRUST_PROXY` | `false` | Believe `x-forwarded-for` and `x-forwarded-proto`. Only behind a proxy you own. |
 | `LOG_REQUESTS` | `true` | One line per request, with canvas ids redacted. |
+| `INDEX_PAGE` | `true` | Serve the explanatory page at `/`. `false` answers `NOT_FOUND` there instead. |
 
 ## Store
 

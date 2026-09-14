@@ -477,3 +477,72 @@ describe("the pages and the pictures", () => {
     }
   });
 });
+
+describe("the index page", () => {
+  let harness: Harness;
+  before(async () => {
+    harness = await start({ LOG_REQUESTS: "false" });
+  });
+  after(async () => harness.close());
+
+  it("explains what the host is and how to point the CLI at it", async () => {
+    const response = await fetch(harness.url + "/");
+    const html = await response.text();
+
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type") ?? "", /text\/html/);
+    assert.match(html, /PR Lens canvas server/);
+    // The one thing a visitor came for: the address to give the CLI, which is
+    // this host rather than a placeholder.
+    assert.match(html, new RegExp(`PR_LENS_API_URL=${harness.url}`));
+    assert.match(html, /pr-lens canvas push/);
+    assert.doesNotMatch(html, /<script/i);
+  });
+
+  it("says nothing about the deployment behind it", async () => {
+    const withStore = await start({
+      LOG_REQUESTS: "false",
+      STORE: "gitlab",
+      GITLAB_URL: "https://git.internal.example.com",
+      GITLAB_PROJECT: "secret-group/canvases",
+      GITLAB_TOKEN: "glpat-do-not-leak-me",
+    });
+    try {
+      const html = await (await fetch(withStore.url + "/")).text();
+
+      for (const secret of [
+        "git.internal.example.com",
+        "secret-group/canvases",
+        "glpat-do-not-leak-me",
+      ])
+        assert.ok(!html.includes(secret), `the page names ${secret}`);
+
+      // The store kind is the exception, because "memory" versus "gitlab" is the
+      // difference between kept and forgotten and a user should know which.
+      assert.match(html, /gitlab/);
+    } finally {
+      await withStore.close();
+    }
+  });
+
+  it("warns that a memory store forgets everything", async () => {
+    const html = await (await fetch(harness.url + "/")).text();
+    assert.match(html, /forgets every canvas/);
+  });
+
+  it("is cacheable, being the same page for everyone", async () => {
+    const response = await fetch(harness.url + "/");
+    assert.match(response.headers.get("cache-control") ?? "", /public/);
+  });
+
+  it("can be turned off entirely", async () => {
+    const quiet = await start({ LOG_REQUESTS: "false", INDEX_PAGE: "false" });
+    try {
+      const response = await call(quiet.url + "/");
+      assert.equal(response.status, 404);
+      assert.equal(response.body.error.code, "NOT_FOUND");
+    } finally {
+      await quiet.close();
+    }
+  });
+});

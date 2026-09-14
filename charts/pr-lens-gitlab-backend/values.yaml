@@ -177,3 +177,7 @@ config:
   # True in a cluster, where the client address only ever arrives forwarded.
   trustProxy: true
   logRequests: true
+
+  # The explanatory page at /. false answers NOT_FOUND there, for a deployment
+  # that would rather not say what it is.
+  indexPage: true

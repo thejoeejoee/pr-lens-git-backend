@@ -86,6 +86,8 @@ first entry onto the line above.
   value: {{ .Values.config.trustProxy | quote }}
 - name: LOG_REQUESTS
   value: {{ .Values.config.logRequests | quote }}
+- name: INDEX_PAGE
+  value: {{ .Values.config.indexPage | quote }}
 {{- with .Values.extraEnv }}
 {{- toYaml . | nindent 0 }}
 {{- end }}

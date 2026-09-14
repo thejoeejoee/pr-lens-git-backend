@@ -11,7 +11,7 @@ import {
   sendJson,
   sendText,
 } from "./http.ts";
-import { canvasPage, heroSvg } from "./page.ts";
+import { canvasPage, heroSvg, indexPage } from "./page.ts";
 import { DrawingCache } from "./render/cache.ts";
 import { bearerToken } from "./secrets.ts";
 import { CachedStore } from "./store/cached.ts";
@@ -69,6 +69,21 @@ const route = async (
   const path = (req.url ?? "/").split("?")[0] ?? "/";
   const query = new URL(req.url ?? "/", "http://localhost").searchParams;
   const origin = originOf(req, config);
+
+  // Somebody pasted the host into a browser. Tell them what this is, in terms
+  // that are true of any deployment: nothing here names the store's project or
+  // any canvas, so the page is the same for everyone and may be cached as such.
+  if (path === "/" && (method === "GET" || method === "HEAD")) {
+    if (!config.indexPage) throw notFound();
+    sendText(
+      res,
+      200,
+      "text/html; charset=utf-8",
+      indexPage(origin, { store: config.store, draws: config.draw }),
+      { "cache-control": "public, max-age=300" },
+    );
+    return;
+  }
 
   // Liveness is about this process; readiness is about the store behind it.
   // Keeping them apart means a container health check does not spend a GitLab

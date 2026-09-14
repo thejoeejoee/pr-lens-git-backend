@@ -41,6 +41,8 @@ export type Config = {
   trustProxy: boolean;
   /** One line per request, with canvas ids redacted. */
   logRequests: boolean;
+  /** Serve the explanatory page at `/`. Off answers NOT_FOUND there instead. */
+  indexPage: boolean;
 };
 
 const str = (name: string, fallback?: string): string => {
@@ -114,5 +116,6 @@ export const loadConfig = (): Config => {
     ),
     trustProxy: bool("TRUST_PROXY", false),
     logRequests: bool("LOG_REQUESTS", true),
+    indexPage: bool("INDEX_PAGE", true),
   };
 };
