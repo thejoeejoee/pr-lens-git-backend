@@ -87,6 +87,17 @@ topologySpreadConstraints: []
 # Extra environment for anything this chart does not name.
 extraEnv: []
 
+# For a self-managed GitLab behind a private CA: mount the bundle and point
+# NODE_EXTRA_CA_CERTS at it through extraEnv.
+extraVolumes: []
+#  - name: gitlab-ca
+#    configMap:
+#      name: gitlab-ca
+extraVolumeMounts: []
+#  - name: gitlab-ca
+#    mountPath: /etc/ssl/gitlab
+#    readOnly: true
+
 config:
   # The origin the answers' URLs are built from. Leave empty and each answer
   # names whichever host the request arrived on, which behind an ingress is

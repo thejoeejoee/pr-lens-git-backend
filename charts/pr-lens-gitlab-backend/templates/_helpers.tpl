@@ -37,7 +37,9 @@ The settings, as environment. Written here rather than in a ConfigMap so that
 the whole configuration of a pod is one thing to read.
 
 Numbers go through int64 before quoting, or Helm renders a large one in
-scientific notation and the server is handed "4e+06" to parse.
+scientific notation and the server is handed "4e+06" to parse. extraEnv goes
+through `nindent 0` rather than a bare `toYaml`, or the trim markers glue its
+first entry onto the line above.
 */}}
 {{- define "pr-lens-gitlab-backend.env" -}}
 - name: PORT
@@ -85,6 +87,6 @@ scientific notation and the server is handed "4e+06" to parse.
 - name: LOG_REQUESTS
   value: {{ .Values.config.logRequests | quote }}
 {{- with .Values.extraEnv }}
-{{- toYaml . }}
+{{- toYaml . | nindent 0 }}
 {{- end }}
 {{- end -}}
