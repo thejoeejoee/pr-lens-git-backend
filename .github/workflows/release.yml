@@ -40,24 +40,14 @@ jobs:
 
       - run: npm test
 
+      # The same check `prepublishOnly` runs, so a release cannot be laxer than
+      # a publish from a laptop.
       - name: the tag, package.json and the chart all agree
         id: version
         run: |
           tag="${{ inputs.tag || github.ref_name }}"
-          version="$(node -p "require('./package.json').version")"
-          if [ "$tag" != "v$version" ]; then
-            echo "tag $tag does not match package version $version" >&2
-            exit 1
-          fi
-          # The chart's appVersion is what pins the image a release installs, so
-          # a chart left behind would deploy the previous version silently.
-          chart="$(grep -E '^version:' charts/pr-lens-gitlab-backend/Chart.yaml | awk '{print $2}')"
-          app="$(grep -E '^appVersion:' charts/pr-lens-gitlab-backend/Chart.yaml | tr -d '"' | awk '{print $2}')"
-          if [ "$chart" != "$version" ] || [ "$app" != "$version" ]; then
-            echo "chart $chart / appVersion $app do not match package version $version" >&2
-            exit 1
-          fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          npm run check:versions -- --tag "$tag"
+          echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
 
   npm:
     needs: verify

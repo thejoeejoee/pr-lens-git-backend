@@ -65,13 +65,18 @@ same CI OIDC token that authorises the publish, so outside CI npm fails with
 
 ## Then, for each release
 
-Three files carry the version and `verify` refuses to start unless all three
-agree — a chart left behind would silently install the previous image:
+Three places carry the version — `package.json`, and the chart's `version` and
+`appVersion` — and nothing publishes unless all three agree. A chart left behind
+would let `helm upgrade` succeed and silently install the previous image.
+
+`npm run check:versions` is that check. It runs in `verify`, and again from
+`prepublishOnly`, so it holds whether a release comes from a tag or from someone's
+laptop.
 
 ```bash
 npm version minor --no-git-tag-version     # package.json
 # edit charts/pr-lens-gitlab-backend/Chart.yaml: version and appVersion
-git commit -am "Release v0.2.0"
+git commit -am "chore(release): v0.2.0"
 git tag v0.2.0
 git push --follow-tags
 ```
@@ -89,20 +94,6 @@ gh run watch --exit-status
 | npm | `pr-lens-gitlab-backend`, holding `dist/` only — `prepare` builds it, so the sources never ship |
 | image | `ghcr.io/thejoeejoee/pr-lens-gitlab-backend:{version}`, plus `{major}.{minor}`, `{major}` and `latest`, for amd64 and arm64, with a build attestation |
 | chart | `oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend:{version}`, also attached to the run as an artifact |
-
-## Publishing by hand
-
-The workflow is the supported path. A local publish still works and is how
-`0.1.0` got to the registry in the first place — a trusted publisher can only be
-configured on a package that already exists — but it cannot be signed:
-
-```bash
-npm publish --access public
-```
-
-The tarball is identical; it simply arrives without a provenance attestation, so
-npm shows no link back to the commit it was built from. It also skips `verify`,
-so nothing checks that `package.json` and the chart agree on the version.
 
 ## Re-running one
 

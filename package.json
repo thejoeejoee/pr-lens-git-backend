@@ -42,7 +42,9 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node --test \"test/**/*.test.ts\"",
-    "prepare": "npm run build"
+    "check:versions": "node scripts/check-versions.ts",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run check:versions && npm run typecheck && npm test"
   },
   "dependencies": {
     "@coldtea/pr-lens-renderer": "^0.2.5",
