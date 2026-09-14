@@ -1,0 +1,57 @@
+name: release-please
+
+# Versions and the changelog, kept by release-please rather than by hand.
+#
+# Every push to main updates one long-lived pull request: the version bump in
+# package.json, the chart's version and appVersion, and the CHANGELOG entry
+# assembled from the conventional-commit subjects since the last release. Nothing
+# is released until somebody merges that PR, at which point release-please tags
+# and publishes the GitHub Release.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  # https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      released: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish:
+    # A tag pushed by GITHUB_TOKEN does not trigger another workflow, so the
+    # release has to be asked for rather than waited on. Dispatching release.yml
+    # instead of duplicating its jobs here also keeps the npm trusted publisher
+    # intact: the trust names that workflow file, and a reusable workflow would
+    # change the claim.
+    needs: release-please
+    if: needs.release-please.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: release ${{ needs.release-please.outputs.tag }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.release-please.outputs.tag }}
+        run: gh workflow run release.yml --ref "$TAG" -f tag="$TAG"

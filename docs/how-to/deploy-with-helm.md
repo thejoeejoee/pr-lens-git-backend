@@ -20,6 +20,7 @@ kubectl create secret generic pr-lens-gitlab \
 
 ## Install
 
+<!-- x-release-please-start-version -->
 ```bash
 helm install lens oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend \
   --version 0.2.0 \
@@ -29,6 +30,7 @@ helm install lens oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend \
   --set ingress.enabled=true \
   --set ingress.host=lens.example.com
 ```
+<!-- x-release-please-end -->
 
 For Gateway API instead of an Ingress:
 

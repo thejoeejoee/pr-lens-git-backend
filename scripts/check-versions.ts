@@ -16,8 +16,16 @@ import { readFileSync } from "node:fs";
  *   node scripts/check-versions.ts [--tag v1.2.3]
  */
 
+/**
+ * A top-level scalar out of Chart.yaml, tolerating the trailing
+ * `# x-release-please-version` annotation that tells release-please to rewrite
+ * the line.
+ */
 const field = (yaml: string, name: string): string | undefined => {
-  const match = new RegExp(`^${name}:\\s*"?([^"\\s]+)"?\\s*$`, "m").exec(yaml);
+  const match = new RegExp(
+    `^${name}:\\s*"?([^"\\s#]+)"?\\s*(?:#.*)?$`,
+    "m",
+  ).exec(yaml);
   return match?.[1];
 };
 
