@@ -60,6 +60,10 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
   npm:
+    # Temporarily off, so a tag releases only the image and the chart. Delete
+    # this line to publish again; the rest of the job is unchanged and still
+    # wants an NPM_TOKEN secret and a public repository for provenance.
+    if: false
     needs: verify
     runs-on: ubuntu-latest
     environment: release
