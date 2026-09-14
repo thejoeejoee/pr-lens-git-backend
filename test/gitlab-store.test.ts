@@ -39,6 +39,7 @@ describe("the GitLab store", () => {
     prefix: "canvases",
     authorName: "pr-lens-gitlab-backend",
     authorEmail: "pr-lens-gitlab-backend@localhost",
+    userAgent: "pr-lens-gitlab-backend/9.9.9 (test-host)",
   });
 
   before(async () => {
@@ -173,6 +174,18 @@ describe("the GitLab store", () => {
       () => store.read(ID),
       (error: unknown) => error instanceof StoreUnavailable,
     );
+  });
+
+  it("names itself and the instance on every call", async () => {
+    await store.read(ID);
+    assert.equal(
+      gitlab.lastUserAgent,
+      "pr-lens-gitlab-backend/9.9.9 (test-host)",
+      "GitLab's logs should be able to name the caller",
+    );
+
+    await store.create(recordFor());
+    assert.equal(gitlab.lastUserAgent, "pr-lens-gitlab-backend/9.9.9 (test-host)");
   });
 
   it("pings the project, so a bad token fails at startup", async () => {

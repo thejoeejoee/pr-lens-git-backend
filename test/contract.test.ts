@@ -477,3 +477,106 @@ describe("the pages and the pictures", () => {
     }
   });
 });
+
+describe("the index page", () => {
+  let harness: Harness;
+  before(async () => {
+    harness = await start({ LOG_REQUESTS: "false" });
+  });
+  after(async () => harness.close());
+
+  it("explains what the host is", async () => {
+    const response = await fetch(harness.url + "/");
+    const html = await response.text();
+
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type") ?? "", /text\/html/);
+    assert.match(html, /PR Lens canvas server/);
+    assert.doesNotMatch(html, /<script/i);
+  });
+
+  it("shows how to redirect the skill and the CLI at this host", async () => {
+    const html = await (await fetch(harness.url + "/")).text();
+
+    // The variable, the flag, and the agent skill that also defaults elsewhere.
+    assert.match(html, new RegExp(`export PR_LENS_API_URL=${harness.url}`));
+    assert.match(html, new RegExp(`--api ${harness.url}`));
+    assert.match(html, /diagram this PR with pr-lens/);
+    assert.match(html, /canvas push/);
+    assert.match(html, /canvas pull/);
+    // The console output on the page is the CLI's real wording, checked by
+    // running it against this server rather than imagined.
+    assert.match(html, /unlisted: anyone you share it with can open it/);
+
+    // The example links are this host, which is the whole point of the page.
+    assert.match(html, new RegExp(`${harness.url}/c/[A-Za-z0-9_-]+`));
+    assert.match(html, /prlens\.dev/, "it says what it is replacing");
+  });
+
+  it("never puts a real canvas id on the page", async () => {
+    const minted = await call(`${harness.url}/api/canvas`, { method: "POST" });
+    const html = await (await fetch(harness.url + "/")).text();
+
+    assert.ok(!html.includes(minted.body.id), "an id is a read capability");
+    assert.ok(!html.includes(minted.body.writeToken));
+  });
+
+  it("keeps the token out, while saying which store it is", async () => {
+    const withStore = await start({
+      LOG_REQUESTS: "false",
+      STORE: "gitlab",
+      GITLAB_URL: "https://git.internal.example.com",
+      GITLAB_PROJECT: "secret-group/canvases",
+      GITLAB_TOKEN: "glpat-do-not-leak-me",
+    });
+    try {
+      const html = await (await fetch(withStore.url + "/")).text();
+
+      assert.ok(!html.includes("glpat-do-not-leak-me"), "the token is on the page");
+      assert.match(html, /gitlab/);
+    } finally {
+      await withStore.close();
+    }
+  });
+
+  it("counts the canvases it holds", async () => {
+    const counting = await start({ LOG_REQUESTS: "false" });
+    try {
+      assert.match(
+        await (await fetch(counting.url + "/")).text(),
+        /Canvases<\/dt><dd>none yet/,
+      );
+
+      await call(`${counting.url}/api/canvas`, { method: "POST" });
+      await call(`${counting.url}/api/canvas`, { method: "POST" });
+
+      assert.match(
+        await (await fetch(counting.url + "/")).text(),
+        /Canvases<\/dt><dd>2</,
+      );
+    } finally {
+      await counting.close();
+    }
+  });
+
+  it("warns that a memory store forgets everything", async () => {
+    const html = await (await fetch(harness.url + "/")).text();
+    assert.match(html, /forgets every canvas/);
+  });
+
+  it("is not cached, since the count on it would go stale", async () => {
+    const response = await fetch(harness.url + "/");
+    assert.equal(response.headers.get("cache-control"), "no-store");
+  });
+
+  it("can be turned off entirely", async () => {
+    const quiet = await start({ LOG_REQUESTS: "false", INDEX_PAGE: "false" });
+    try {
+      const response = await call(quiet.url + "/");
+      assert.equal(response.status, 404);
+      assert.equal(response.body.error.code, "NOT_FOUND");
+    } finally {
+      await quiet.close();
+    }
+  });
+});

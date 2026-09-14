@@ -14,6 +14,7 @@ If you have no CDN to put in front, the chart ships one as a sidecar — see
 | `/images/{id}/…svg` | `public, max-age=31536000, immutable` | Cache it for ever. The hash is in the file name. |
 | `/c/{id}.svg` | `public, max-age=60, stale-while-revalidate=300` + ETag | Cache, revalidate on the ETag. |
 | `/c/{id}` | `no-store` | Never. |
+| `/` | `no-store` | Never. It carries the live canvas count. |
 | `/api/canvas/…` | `no-store` | Never. The contract asks for this. |
 
 The two `no-store` routes are not a performance problem: pushes are rare, and a

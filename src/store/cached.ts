@@ -1,4 +1,4 @@
-import type { CanvasRecord, Store, Stored, WriteResult } from "./types.ts";
+import type { Count, CanvasRecord, Store, Stored, WriteResult } from "./types.ts";
 
 /**
  * A read-through cache in front of any store, and the reason this server can
@@ -13,10 +13,15 @@ import type { CanvasRecord, Store, Stored, WriteResult } from "./types.ts";
  * Its own writes refresh the entry, so a single instance is always coherent
  * with itself; only a second instance can see the window, and only for the TTL.
  */
+/** How long a canvas count may be repeated before the store is walked again. */
+const COUNT_TTL_MS = 60_000;
+
 export class CachedStore implements Store {
   readonly #inner: Store;
   readonly #ttlMs: number;
   readonly #entries = new Map<string, { at: number; value: Stored | null }>();
+  #counted: { at: number; value: Count | undefined } | undefined;
+
   /** Coalesces a thundering herd on one id into a single backend read. */
   readonly #inflight = new Map<string, Promise<Stored | null>>();
 
@@ -68,6 +73,8 @@ export class CachedStore implements Store {
   async create(record: CanvasRecord): Promise<WriteResult> {
     const result = await this.#inner.create(record);
     this.#drop(record.id);
+    // A mint changes the count, and this instance is the one that knows.
+    this.#counted = undefined;
     return result;
   }
 
@@ -80,10 +87,26 @@ export class CachedStore implements Store {
   async remove(id: string, etag: string): Promise<WriteResult> {
     const result = await this.#inner.remove(id, etag);
     this.#drop(id);
+    this.#counted = undefined;
     return result;
   }
 
   async ping(): Promise<void> {
     return this.#inner.ping();
+  }
+
+  /**
+   * Counting means walking the store, which is far too expensive to do per
+   * request, and a number that is a minute old is no less true of a canvas
+   * server than a fresh one.
+   */
+  async count(): Promise<Count | undefined> {
+    const now = Date.now();
+    if (this.#counted !== undefined && now - this.#counted.at < COUNT_TTL_MS)
+      return this.#counted.value;
+
+    const value = await this.#inner.count();
+    this.#counted = { at: now, value };
+    return value;
   }
 }

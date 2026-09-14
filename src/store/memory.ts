@@ -1,5 +1,6 @@
 import {
   type CanvasRecord,
+  type Count,
   type Store,
   type Stored,
   type WriteResult,
@@ -56,4 +57,8 @@ export class MemoryStore implements Store {
   }
 
   async ping(): Promise<void> {}
+
+  async count(): Promise<Count> {
+    return { canvases: this.#records.size, atLeast: false };
+  }
 }

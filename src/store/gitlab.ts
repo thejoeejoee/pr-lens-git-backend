@@ -1,6 +1,7 @@
 import type { GitLabSettings } from "../config.ts";
 import {
   isCanvasRecord,
+  type Count,
   StoreThrottled,
   StoreUnavailable,
   type CanvasRecord,
@@ -36,6 +37,10 @@ const BRANCH_MOVED =
 const NO_BRANCH = /branch.*(not found|does not exist)|invalid branch/i;
 
 const BRANCH_RETRIES = 4;
+
+/** Counting stops here and says "at least", rather than paging for ever. */
+const COUNT_PAGES = 20;
+const COUNT_PER_PAGE = 100;
 
 type CommitAction = {
   action: "create" | "update" | "delete";
@@ -91,6 +96,7 @@ export class GitLabStore implements Store {
         headers: {
           "private-token": this.#settings.token,
           accept: "application/json",
+          "user-agent": this.#settings.userAgent,
           ...(body === undefined
             ? {}
             : { "content-type": "application/json" }),
@@ -248,6 +254,51 @@ export class GitLabStore implements Store {
       file_path: this.#path(id),
       last_commit_id: etag,
     });
+  }
+
+  /**
+   * How many canvas files the tree holds, walked a page at a time.
+   *
+   * Capped, because a repository with a hundred thousand canvases is not worth a
+   * thousand API calls to count exactly; past the cap the answer becomes "at
+   * least this many", which is all a page ever needed. A failure here answers
+   * undefined rather than throwing: a count is decoration, and no request should
+   * fail for want of one.
+   */
+  async count(): Promise<Count | undefined> {
+    const path = encodeURIComponent(this.#settings.prefix);
+    const ref = encodeURIComponent(this.#settings.branch);
+    let canvases = 0;
+
+    try {
+      for (let page = 1; page <= COUNT_PAGES; page += 1) {
+        const answer = await this.#call(
+          "GET",
+          `/repository/tree?path=${path}&recursive=true&per_page=${COUNT_PER_PAGE}&page=${page}`,
+        );
+
+        // Nothing has been minted yet, so the directory does not exist.
+        if (answer.status === 404) return { canvases, atLeast: false };
+        if (answer.status < 200 || answer.status >= 300) return undefined;
+        if (!Array.isArray(answer.body)) return undefined;
+
+        const entries = answer.body as { type?: unknown; name?: unknown }[];
+        for (const entry of entries)
+          if (
+            entry.type === "blob" &&
+            typeof entry.name === "string" &&
+            entry.name.endsWith(".json")
+          )
+            canvases += 1;
+
+        // A short page is the last page.
+        if (entries.length < COUNT_PER_PAGE) return { canvases, atLeast: false };
+      }
+    } catch {
+      return undefined;
+    }
+
+    return { canvases, atLeast: true };
   }
 
   async ping(): Promise<void> {

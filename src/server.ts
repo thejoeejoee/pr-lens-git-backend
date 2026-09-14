@@ -11,7 +11,7 @@ import {
   sendJson,
   sendText,
 } from "./http.ts";
-import { canvasPage, heroSvg } from "./page.ts";
+import { canvasPage, heroSvg, indexPage } from "./page.ts";
 import { DrawingCache } from "./render/cache.ts";
 import { bearerToken } from "./secrets.ts";
 import { CachedStore } from "./store/cached.ts";
@@ -69,6 +69,24 @@ const route = async (
   const path = (req.url ?? "/").split("?")[0] ?? "/";
   const query = new URL(req.url ?? "/", "http://localhost").searchParams;
   const origin = originOf(req, config);
+
+  // Somebody pasted the host into a browser. Tell them what this is, and mostly
+  // how to point a working setup at it rather than at prlens.dev. Not cached: the
+  // canvas count on it would go stale, and it is one small page.
+  if (path === "/" && (method === "GET" || method === "HEAD")) {
+    if (!config.indexPage) throw notFound();
+    sendText(
+      res,
+      200,
+      "text/html; charset=utf-8",
+      indexPage(origin, {
+        store: config.store,
+        draws: config.draw,
+        count: await service.count(),
+      }),
+    );
+    return;
+  }
 
   // Liveness is about this process; readiness is about the store behind it.
   // Keeping them apart means a container health check does not spend a GitLab
