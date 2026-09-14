@@ -35,6 +35,10 @@ jobs:
 
       - run: npm run typecheck
 
+      # Here as well as in the release, because this is where a release PR gets
+      # checked. A chart left a version behind passed CI once already.
+      - run: npm run check:versions
+
       - run: npm test
 
       # The published artefact is the build, so a build that breaks is a

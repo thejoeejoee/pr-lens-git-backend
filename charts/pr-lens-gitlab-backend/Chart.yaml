@@ -2,11 +2,8 @@ apiVersion: v2
 name: pr-lens-gitlab-backend
 description: A lightweight PR Lens canvas server, with a GitLab repository as the store
 type: application
-# Kept in step with the application on purpose: one tag releases the npm
-# package, the container image and this chart, all carrying the same number.
-# release-please rewrites both of these, which is why they are annotated.
-version: 0.2.0 # x-release-please-version
-appVersion: "0.2.0" # x-release-please-version
+version: 0.2.0
+appVersion: "0.2.0"
 kubeVersion: ">=1.25.0-0"
 home: https://github.com/thejoeejoee/pr-lens-gitlab-backend
 sources:
