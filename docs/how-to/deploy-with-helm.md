@@ -22,7 +22,7 @@ kubectl create secret generic pr-lens-gitlab \
 
 ```bash
 helm install lens oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend \
-  --version 0.1.0 \
+  --version 0.2.0 \
   --set secretName=pr-lens-gitlab \
   --set config.gitlab.project=platform/pr-lens-canvases \
   --set config.publicUrl=https://lens.example.com \
