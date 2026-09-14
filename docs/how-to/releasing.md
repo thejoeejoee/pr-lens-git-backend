@@ -7,27 +7,38 @@ image, and the Helm chart. Four jobs, in
 
 ## Configure this once
 
-### 1. `NPM_TOKEN`
+There are no publishing secrets. npm is reached over OIDC and ghcr with the
+built-in `GITHUB_TOKEN`, so nothing in this repository has a credential to leak
+or rotate.
 
-The only secret you have to add. In npm, **Access Tokens → Generate → Granular**,
-with write access to `pr-lens-gitlab-backend`, then in GitHub under
-**Settings → Secrets and variables → Actions**:
-
-```
-NPM_TOKEN = npm_…
-```
-
-A classic **Automation** token works too; what matters is that it bypasses 2FA,
-because the workflow cannot answer an OTP prompt.
-
-### 2. A `release` environment
+### 1. A `release` environment
 
 The `npm` job declares `environment: release`. Create it under
 **Settings → Environments → New environment**, named `release`. Empty is fine —
 it exists so you can later add a required reviewer and have a publish wait for
-one.
+one, and npm checks the name as part of the trust below.
 
 Without it the job fails on a missing environment, so this step is not optional.
+
+### 2. npm as a trusted publisher
+
+On the package's **Settings → Trusted Publisher**, with the package already
+published once:
+
+| Field | Value |
+| --- | --- |
+| Publisher | GitHub Actions |
+| Organization or user | `thejoeejoee` |
+| Repository | `pr-lens-gitlab-backend` |
+| Workflow filename | `release.yml` — filename only, no path |
+| Environment name | `release` |
+| Allowed actions | publish directly |
+
+npm then trades the workflow's OIDC token for a short-lived publish token. The
+trust cannot be edited afterwards, only deleted and recreated, and the three
+names above have to keep matching the workflow: rename the job's `environment`,
+move the file, or rename the repository, and publishing stops until the trust is
+recreated.
 
 ### 3. Nothing for the image or the chart
 
@@ -48,8 +59,8 @@ from the workflow at the same time.
 
 Provenance is asked for by that flag and nowhere else, deliberately.
 `publishConfig.provenance` in `package.json` would demand it on every publish
-including a local one, which cannot produce it: provenance is signed by a CI
-provider's OIDC token, so outside CI npm fails with
+including a local one, which cannot produce it: the attestation is signed by the
+same CI OIDC token that authorises the publish, so outside CI npm fails with
 `Automatic provenance generation not supported for provider: null`.
 
 ## Then, for each release
@@ -81,16 +92,17 @@ gh run watch --exit-status
 
 ## Publishing by hand
 
-The workflow is the supported path, but nothing stops a local publish — it just
-cannot be signed:
+The workflow is the supported path. A local publish still works and is how
+`0.1.0` got to the registry in the first place — a trusted publisher can only be
+configured on a package that already exists — but it cannot be signed:
 
 ```bash
 npm publish --access public
 ```
 
 The tarball is identical; it simply arrives without a provenance attestation, so
-npm shows no link back to the commit it was built from. Worth it to unblock a
-first release, worth undoing afterwards.
+npm shows no link back to the commit it was built from. It also skips `verify`,
+so nothing checks that `package.json` and the chart agree on the version.
 
 ## Re-running one
 
@@ -104,3 +116,6 @@ gh workflow run release.yml -f tag=v0.2.0
 npm refuses to republish a version that already exists, so a re-run after a
 partial release fails on the part that already succeeded. Publish the missing
 piece by hand, or bump the patch version.
+
+A `workflow_dispatch` run publishes under the same trust as a tag push: the claim
+npm checks is the workflow file and the environment, not what triggered it.

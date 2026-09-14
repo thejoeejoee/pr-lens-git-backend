@@ -62,10 +62,14 @@ jobs:
   npm:
     needs: verify
     runs-on: ubuntu-latest
+    # Named in npm's trusted publisher for this package, which checks the claim
+    # matches. Renaming it here without renaming it there stops publishing.
     environment: release
     permissions:
       contents: read
-      # Signs the published tarball, so npm can show where it was built.
+      # The whole of the credential. npm trades this OIDC token for a
+      # short-lived publish token, so there is no NPM_TOKEN to leak or rotate,
+      # and the same token is what signs the provenance attestation.
       id-token: write
     steps:
       - uses: actions/checkout@v7
@@ -78,12 +82,14 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
 
+      # Trusted publishing wants npm 11.5.1 or newer; whatever Node ships with
+      # is not a promise, so ask for it.
+      - run: npm install -g npm@latest
+
       - run: npm ci
 
-      # prepack builds, so the tarball holds dist/ and never the sources.
+      # prepare builds, so the tarball holds dist/ and never the sources.
       - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   container:
     needs: verify

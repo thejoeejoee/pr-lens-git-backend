@@ -83,8 +83,9 @@ A `v*` tag releases all three artifacts at the same version — the npm package
 with provenance, `ghcr.io/thejoeejoee/pr-lens-gitlab-backend` for amd64 and
 arm64, and `oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend` — and
 refuses to start unless the tag, `package.json` and the chart's `version` and
-`appVersion` all agree. [Releasing](docs/how-to/releasing.md) lists what has to
-be configured first.
+`appVersion` all agree. There are no publishing secrets: npm is reached over OIDC
+as a trusted publisher, ghcr with the built-in token.
+[Releasing](docs/how-to/releasing.md) has the setup.
 
 ## License
 
