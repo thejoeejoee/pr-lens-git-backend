@@ -1,0 +1,19 @@
+apiVersion: v2
+name: pr-lens-gitlab-backend
+description: A lightweight PR Lens canvas server, with a GitLab repository as the store
+type: application
+# Kept in step with the application on purpose: one tag releases the npm
+# package, the container image and this chart, all carrying the same number.
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.25.0-0"
+home: https://github.com/thejoeejoee/pr-lens-gitlab-backend
+sources:
+  - https://github.com/thejoeejoee/pr-lens-gitlab-backend
+keywords:
+  - pr-lens
+  - canvas
+  - diagram
+  - gitlab
+maintainers:
+  - name: thejoeejoee

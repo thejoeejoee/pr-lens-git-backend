@@ -1,0 +1,28 @@
+{{ include "pr-lens-gitlab-backend.fullname" . }} is installed, speaking version
+1 of the PR Lens canvas API.
+
+Point the CLI at it:
+{{- if .Values.ingress.enabled }}
+
+  export PR_LENS_API_URL={{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ .Values.ingress.host }}
+{{- else if .Values.httpRoute.enabled }}
+
+  export PR_LENS_API_URL=https://{{ first .Values.httpRoute.hostnames }}
+{{- else }}
+
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "pr-lens-gitlab-backend.fullname" . }} 8787:{{ .Values.service.port }}
+  export PR_LENS_API_URL=http://127.0.0.1:8787
+{{- end }}
+
+  pr-lens canvas push
+
+{{ if not .Values.config.publicUrl -}}
+config.publicUrl is empty, so every answer names whichever host the request
+arrived on. Behind an ingress or a gateway that is usually right; set it if
+anything rewrites the Host header, or the edit links the CLI prints will point
+at the wrong place.
+{{- end }}
+{{ if eq .Values.config.store "memory" -}}
+config.store is "memory": every canvas is forgotten when a pod restarts. Set it
+to "gitlab" and give it a project before anyone relies on a link.
+{{- end }}

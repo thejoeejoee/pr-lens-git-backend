@@ -1,0 +1,123 @@
+# Two by default: the server holds nothing that cannot be rebuilt, so a second
+# replica costs a little memory and buys a rolling restart with no downtime.
+replicaCount: 2
+
+image:
+  repository: ghcr.io/thejoeejoee/pr-lens-gitlab-backend
+  pullPolicy: IfNotPresent
+  # Empty means the chart's appVersion, so a chart release pins its own image.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  # Nothing is written to disk; the one writable path is an emptyDir at /tmp.
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+# The Secret holding GITLAB_TOKEN. Every key in it arrives as an environment
+# variable, so anything else worth keeping out of a values file can go in it too
+# -- though a name the settings below already set wins there, not here. This
+# chart does not create it: a token belongs to whatever manages your secrets,
+# not to a chart release.
+#
+#   kubectl create secret generic pr-lens-gitlab \
+#     --from-literal=GITLAB_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx
+secretName: ""
+
+service:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+
+# Two ways in, both off. Pick whichever your cluster speaks.
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  # The host answers become addresses under, and what config.publicUrl names.
+  host: lens.example.com
+  path: /
+  pathType: Prefix
+  tls: []
+  #  - secretName: lens-tls
+  #    hosts: [lens.example.com]
+
+httpRoute:
+  enabled: false
+  annotations: {}
+  hostnames:
+    - lens.example.com
+  parentRefs:
+    - name: gateway
+      # The Gateway's own namespace, when it is not this release's.
+      # namespace: gateway-system
+      # sectionName: https
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 192Mi
+  limits:
+    # Drawing is synchronous CPU work, so a limit below a whole core turns a
+    # burst of pushes into throttled requests.
+    cpu: "1"
+    memory: 768Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+
+# Extra environment for anything this chart does not name.
+extraEnv: []
+
+config:
+  # The origin the answers' URLs are built from. Leave empty and each answer
+  # names whichever host the request arrived on, which behind an ingress is
+  # usually right but is worth stating.
+  publicUrl: ""
+
+  # gitlab or memory. memory forgets every canvas when a pod restarts.
+  store: gitlab
+
+  gitlab:
+    url: https://gitlab.com
+    # Numeric project id or the full path. Required when store is gitlab.
+    project: ""
+    branch: main
+    prefix: canvases
+    authorName: pr-lens-gitlab-backend
+    authorEmail: pr-lens-gitlab-backend@example.com
+
+  maxBodyBytes: 4000000
+  readCacheTtlMs: 5000
+  renderCacheBytes: 67108864
+  # false turns this into a pure store: every answer carries tiles: [].
+  draw: true
+
+  # Zero on either turns that meter off. Both are per pod.
+  mintsPerHourPerIp: 60
+  pushesPerMinutePerCanvas: 30
+
+  imageCacheControl: "public, max-age=31536000, immutable"
+  embedCacheControl: "public, max-age=60, stale-while-revalidate=300"
+
+  # True in a cluster, where the client address only ever arrives forwarded.
+  trustProxy: true
+  logRequests: true

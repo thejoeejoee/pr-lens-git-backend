@@ -1,0 +1,56 @@
+{
+  "name": "pr-lens-gitlab-backend",
+  "version": "0.1.0",
+  "description": "A lightweight PR Lens canvas server: version 1 of the canvas API, with a GitLab repository as the store.",
+  "keywords": [
+    "pr-lens",
+    "canvas",
+    "diagram",
+    "gitlab",
+    "cdn",
+    "svg"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thejoeejoee/pr-lens-gitlab-backend.git"
+  },
+  "homepage": "https://github.com/thejoeejoee/pr-lens-gitlab-backend#readme",
+  "bugs": {
+    "url": "https://github.com/thejoeejoee/pr-lens-gitlab-backend/issues"
+  },
+  "type": "module",
+  "bin": {
+    "pr-lens-gitlab-backend": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    ".env.example"
+  ],
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "start": "node src/index.ts",
+    "dev": "node --watch src/index.ts",
+    "serve": "node dist/index.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@coldtea/pr-lens-renderer": "^0.2.5",
+    "@coldtea/pr-lens-schema": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.5.1",
+    "typescript": "^7.0.2"
+  }
+}

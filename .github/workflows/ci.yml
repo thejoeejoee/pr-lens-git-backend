@@ -1,0 +1,105 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Nothing here writes anywhere.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # The tests run the TypeScript sources directly, so every version here
+        # has to strip types without a flag. 22.18 was the first that does.
+        node: ["22", "24"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      # The published artefact is the build, so a build that breaks is a
+      # release that breaks, and this is where to find that out.
+      - run: npm run build
+
+  docker:
+    # Builds the image on every change without pushing it, so a broken
+    # Dockerfile is a failed check rather than a failed release.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: pr-lens-gitlab-backend:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: the image starts and answers
+        run: |
+          docker run -d --name backend -p 8787:8787 -e STORE=memory pr-lens-gitlab-backend:ci
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8787/healthz && break
+            sleep 1
+          done
+          curl -fsS -X POST http://127.0.0.1:8787/api/canvas | tee /dev/stderr | grep -q '"rev":0'
+          docker rm -f backend
+
+  chart:
+    # Lints and renders the chart, both ways in, so a broken template is a
+    # failed check rather than a failed release.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+
+      - run: helm lint charts/pr-lens-gitlab-backend --strict
+          --set config.gitlab.project=group/canvases
+          --set secretName=pr-lens-gitlab
+
+      - name: it renders with an ingress
+        run: |
+          helm template lens charts/pr-lens-gitlab-backend \
+            --set config.gitlab.project=group/canvases \
+            --set secretName=pr-lens-gitlab \
+            --set ingress.enabled=true > /dev/null
+
+      - name: it renders with a Gateway API route
+        run: |
+          helm template lens charts/pr-lens-gitlab-backend \
+            --set config.gitlab.project=group/canvases \
+            --set secretName=pr-lens-gitlab \
+            --set httpRoute.enabled=true > /dev/null
+
+      - name: a gitlab store without a Secret is refused
+        run: |
+          if helm template lens charts/pr-lens-gitlab-backend \
+            --set config.gitlab.project=group/canvases > /dev/null 2>&1; then
+            echo "the chart should have insisted on secretName" >&2
+            exit 1
+          fi
