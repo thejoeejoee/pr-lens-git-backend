@@ -10,6 +10,10 @@ kind of question, so none of them has to answer all four.
 | **Reference** | Looking up. [Configuration](reference/configuration.md) · [Routes](reference/routes.md) · [Storage layout](reference/storage.md) |
 | **Explanation** | Understanding. [Why GitLab works](explanation/why-gitlab.md) · [Determinism and caching](explanation/determinism-and-caching.md) |
 
+Commit subjects follow [Conventional Commits](https://www.conventionalcommits.org),
+which is not decoration: release-please reads them to choose the next version and
+to write [the changelog](../CHANGELOG.md).
+
 The protocol itself is documented upstream, in
 [the canvas API](https://github.com/coldteadotai/pr-lens/blob/main/docs/canvas-api.md).
 Where this server and that page disagree, that page is right and this one has a

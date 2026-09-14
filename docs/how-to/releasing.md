@@ -1,9 +1,12 @@
 # Cut a release
 
-A `v*` tag publishes three things at one version: the npm package, the container
-image, and the Helm chart. Four jobs, in
-`.github/workflows/release.yml`: `verify` gates the rest, then `npm` and
-`container` in parallel, then `chart` once the image it names exists.
+**Merge the release pull request.** That is the whole of it.
+
+[release-please](https://github.com/googleapis/release-please) keeps that PR open
+and up to date on every push to `main`, reading the conventional-commit subjects
+to work out the next version and to write the changelog. Merging it tags the
+release; the tag then publishes three artifacts at one version — the npm package,
+the container image, and the Helm chart.
 
 ## Configure this once
 
@@ -63,29 +66,62 @@ including a local one, which cannot produce it: the attestation is signed by the
 same CI OIDC token that authorises the publish, so outside CI npm fails with
 `Automatic provenance generation not supported for provider: null`.
 
-## Then, for each release
+## What the release PR contains
 
-Three places carry the version — `package.json`, and the chart's `version` and
-`appVersion` — and nothing publishes unless all three agree. A chart left behind
-would let `helm upgrade` succeed and silently install the previous image.
+release-please rewrites four things, so nothing has to be bumped by hand:
 
-`npm run check:versions` is that check. It runs in `verify`, and again from
-`prepublishOnly`, so it holds whether a release comes from a tag or from someone's
-laptop.
+| | |
+| --- | --- |
+| `package.json` + lockfile | the npm version |
+| `charts/…/Chart.yaml` | both `version` and `appVersion` — the second is what pins the image the chart installs |
+| `docs/how-to/deploy-with-helm.md` | the `--version` in the install example |
+| `CHANGELOG.md` | a section per release, grouped by commit type |
 
-```bash
-npm version minor --no-git-tag-version     # package.json
-# edit charts/pr-lens-gitlab-backend/Chart.yaml: version and appVersion
-git commit -am "chore(release): v0.2.0"
-git tag v0.2.0
-git push --follow-tags
+The two files it does not own are `release-please-config.json`, which lists the
+annotated ones, and `.release-please-manifest.json`, which records where the last
+release got to.
+
+## How the version is chosen
+
+From the commit subjects since the last release:
+
+| Subject | Bump |
+| --- | --- |
+| `fix(…): …` | patch |
+| `feat(…): …` | minor |
+| `feat(…)!: …`, or `BREAKING CHANGE:` in the body | major |
+| `chore`, `ci` | none; hidden from the changelog |
+| `docs`, `test`, `refactor`, `perf`, `build` | none; listed in the changelog |
+
+So a release is only offered when something happened that a user would notice. A
+run of `chore` commits leaves no PR open, which is the intended answer rather than
+a fault.
+
+## The check that still runs
+
+Three places carry the version and nothing publishes unless all three agree — a
+chart left behind would let `helm upgrade` succeed and silently install the
+previous image. `npm run check:versions` is that check; it runs in `verify` and
+again from `prepublishOnly`.
+
+release-please should keep them in step on its own. The check is there for when it
+does not: lose one of the `x-release-please-version` annotations and the release
+fails loudly instead of shipping a mismatch.
+
+## Chaining, and why it looks indirect
+
+A tag pushed with `GITHUB_TOKEN` does not trigger another workflow. So
+`release-please.yml` does not wait for `release.yml` to notice the tag — it
+dispatches it:
+
+```yaml
+gh workflow run release.yml --ref "$TAG" -f tag="$TAG"
 ```
 
-Watch it:
-
-```bash
-gh run watch --exit-status
-```
+Dispatching rather than folding the publish jobs into `release-please.yml` is
+also what keeps npm's trusted publisher working: the trust names `release.yml`
+and the `release` environment, it cannot be edited after the fact, and a reusable
+workflow would change the claim.
 
 ## What lands where
 
@@ -109,4 +145,19 @@ partial release fails on the part that already succeeded. Publish the missing
 piece by hand, or bump the patch version.
 
 A `workflow_dispatch` run publishes under the same trust as a tag push: the claim
-npm checks is the workflow file and the environment, not what triggered it.
+npm checks is the workflow file and the environment, not what triggered it. Which
+is exactly why the chaining above works.
+
+## Releasing without release-please
+
+The tag is still the thing that publishes, so the old path remains open if the
+PR is ever in the way:
+
+```bash
+gh workflow run release.yml -f tag=v0.3.0
+```
+
+Bump `package.json`, both `Chart.yaml` fields and `CHANGELOG.md` yourself first —
+`check:versions` will tell you if you miss one — and update
+`.release-please-manifest.json` afterwards, or release-please will offer the same
+version again.

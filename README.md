@@ -138,13 +138,14 @@ TypeScript run directly by Node — no bundler, no loader, no build step to deve
 against. Node 22.18 or newer strips the types itself; the published package and
 the container image run the compiled `dist/`.
 
-A `v*` tag releases all three artifacts at the same version — npm with
-provenance, `ghcr.io/thejoeejoee/pr-lens-gitlab-backend` for amd64 and arm64, and
-`oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend` — and refuses to start
-unless the tag, `package.json` and the chart's `version` and `appVersion` all
-agree. There are no publishing secrets: npm is reached over OIDC as a trusted
-publisher, ghcr with the built-in token.
-[Releasing](docs/how-to/releasing.md) has the setup.
+Releasing is merging a pull request. [release-please](https://github.com/googleapis/release-please)
+keeps one open, reading the conventional-commit subjects to pick the next version
+and write [the changelog](CHANGELOG.md); merging it tags, and the tag publishes
+all three artifacts at that version — npm with provenance,
+`ghcr.io/thejoeejoee/pr-lens-gitlab-backend` for amd64 and arm64, and
+`oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend`. There are no publishing
+secrets: npm is reached over OIDC as a trusted publisher, ghcr with the built-in
+token. [Cut a release](docs/how-to/releasing.md) has the detail.
 
 ## 📄 License
 
