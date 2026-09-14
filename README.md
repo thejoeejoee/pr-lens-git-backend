@@ -36,8 +36,7 @@ and the costs.
 ## Start here
 
 ```bash
-npm ci
-STORE=memory npm start     # forgets everything on restart; for a look around
+STORE=memory npx pr-lens-gitlab-backend   # forgets everything on restart
 ```
 
 Then [the tutorial](docs/tutorial.md) — a canvas of your own, in a project of
@@ -48,7 +47,7 @@ your own, in about ten minutes.
 | | |
 | --- | --- |
 | **[Tutorial](docs/tutorial.md)** | Your first canvas, from nothing. |
-| **How-to** | [Self-managed GitLab](docs/how-to/self-managed-gitlab.md) · [Deploy with Helm](docs/how-to/deploy-with-helm.md) · [Put a CDN in front](docs/how-to/put-a-cdn-in-front.md) |
+| **How-to** | [Self-managed GitLab](docs/how-to/self-managed-gitlab.md) · [Deploy with Helm](docs/how-to/deploy-with-helm.md) · [Put a CDN in front](docs/how-to/put-a-cdn-in-front.md) · [Cut a release](docs/how-to/releasing.md) |
 | **Reference** | [Configuration](docs/reference/configuration.md) · [Routes](docs/reference/routes.md) · [Storage layout](docs/reference/storage.md) |
 | **Explanation** | [Why GitLab works](docs/explanation/why-gitlab.md) · [Determinism and caching](docs/explanation/determinism-and-caching.md) |
 
@@ -80,13 +79,12 @@ TypeScript run directly by Node — no bundler, no loader, no build step to deve
 against. Node 22.18 or newer strips the types itself; the published package and
 the container image run the compiled `dist/`.
 
-A `v*` tag releases the container image
-(`ghcr.io/thejoeejoee/pr-lens-gitlab-backend`, amd64 and arm64) and the Helm chart
-(`oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend`) at the same version,
-and refuses to start unless the tag, `package.json` and the chart's `version` and
-`appVersion` all agree. Publishing to npm is written and wired but switched off —
-the `npm` job in `.github/workflows/release.yml` carries an `if: false` to remove
-when there is an `NPM_TOKEN`.
+A `v*` tag releases all three artifacts at the same version — the npm package
+with provenance, `ghcr.io/thejoeejoee/pr-lens-gitlab-backend` for amd64 and
+arm64, and `oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend` — and
+refuses to start unless the tag, `package.json` and the chart's `version` and
+`appVersion` all agree. [Releasing](docs/how-to/releasing.md) lists what has to
+be configured first.
 
 ## License
 
