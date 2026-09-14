@@ -22,6 +22,13 @@ export type Stored = { record: CanvasRecord; etag: string };
 
 export type WriteResult = "written" | "conflict";
 
+/**
+ * How many canvases the store holds. `atLeast` is true when counting stopped
+ * early rather than reaching the end, so a page can say "2000+" honestly instead
+ * of walking a repository for ever.
+ */
+export type Count = { canvases: number; atLeast: boolean };
+
 export interface Store {
   /** Null for an id the store has never held. */
   read(id: string): Promise<Stored | null>;
@@ -32,6 +39,8 @@ export interface Store {
   remove(id: string, etag: string): Promise<WriteResult>;
   /** A cheap round trip, for the health route. */
   ping(): Promise<void>;
+  /** Undefined when the store cannot say. Never a reason to fail a request. */
+  count(): Promise<Count | undefined>;
 }
 
 export const isCanvasRecord = (value: unknown): value is CanvasRecord => {

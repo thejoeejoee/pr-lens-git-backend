@@ -176,25 +176,27 @@ ${body}
   );
 };
 
-/** What the index page is allowed to say about the server behind it. */
+/** What the index page says about the server behind it. */
 export type Facts = {
   /** "gitlab" or "memory" — which is the difference between kept and forgotten. */
   store: string;
   /** False means every answer carries `tiles: []`. */
   draws: boolean;
+  /** How many canvases are held. Undefined when the store could not say. */
+  count: { canvases: number; atLeast: boolean } | undefined;
 };
 
 /**
  * `GET /`, for the person who pasted the host into a browser to find out what it
  * is.
  *
- * It answers three questions and stops: what this is, how to point the CLI at
- * it, and what happens to what they push. Deliberately absent is anything about
- * the deployment — no GitLab host, no project, no token hint, no canvas count,
- * and above all no ids, since an id is a read capability. Which store kind and
- * whether it draws are the exceptions, because both change what a user should
- * expect: `memory` forgets on restart, and a server that does not draw reports
- * "0 diagrams" without anything being wrong.
+ * Most of the page is one worked example, because the useful thing to know is not
+ * that a canvas server exists but how to make a working setup point at this one:
+ * the PR Lens skill and the CLI both default to prlens.dev, and one environment
+ * variable is what redirects them here.
+ *
+ * No canvas id appears, since an id is a read capability. Everything else about
+ * the server is fair game.
  */
 export const indexPage = (origin: string, facts: Facts): string =>
   shell(
@@ -202,34 +204,63 @@ export const indexPage = (origin: string, facts: Facts): string =>
     `<main class="narrow">
 <h1>PR Lens canvas server</h1>
 <p class="lede">This host keeps <a href="https://github.com/coldteadotai/pr-lens">PR Lens</a>
-canvases: a diagram of a change, pushed from the CLI, kept as a document and
+canvases: a diagram of a change, pushed from your machine, kept as a document and
 served back as pictures. It speaks version 1 of the canvas API, so nothing you
 push here is sent to prlens.dev.</p>
 
-<h3>Point the CLI at it</h3>
-<pre><code>export PR_LENS_API_URL=${escape(origin)}
-pr-lens canvas push</code></pre>
-<p>The CLI prints two links: a view link anyone can open, and an edit link that
-carries your write token. Both are also recorded in <code>.pr-lens/canvas.json</code>
-in your repository.</p>
+<h3>Send your diagrams here instead of prlens.dev</h3>
+<p>The CLI and the PR Lens agent skill both default to prlens.dev. One variable
+redirects them at this host &mdash; put it in your shell profile and forget it:</p>
+<pre><code>export PR_LENS_API_URL=${escape(origin)}</code></pre>
+<p>Or per command, without exporting anything:
+<code>--api ${escape(origin)}</code>.</p>
 
-<h3>What it does with a canvas</h3>
-<ul>
-<li><strong>Mints</strong> it, handing out a read id and a write token &mdash; 128 random bits each.</li>
-<li><strong>Keeps</strong> a revision per push. A push that lands on a revision somebody else already took is refused rather than merged, so nothing is ever silently overwritten.</li>
-<li><strong>Draws</strong> it, and serves each picture from an address containing that picture's own hash, so a diagram can be cached for ever and a changed one is simply a different URL.</li>
-</ul>
+<h3>With the agent skill</h3>
+<p>With that variable set, ask for a diagram the way you normally would:</p>
+<pre><code>$ claude "diagram this PR with pr-lens"</code></pre>
+<p>The skill reads the diff, writes <code>.pr-lens/graph.json</code>, then runs
+these three. The last one lands the canvas here:</p>
+<pre><code>$ npx @coldtea/pr-lens-cli@latest validate .pr-lens/graph.json
+$ npx @coldtea/pr-lens-cli@latest render .pr-lens/graph.json --theme light
+$ npx @coldtea/pr-lens-cli@latest canvas push
+
+✓ ${escape(origin)}/c/Qk3vZp9xLm2aRt8yWn4bCg &mdash; rev 1 &middot; 4 diagrams
+  unlisted: anyone you share it with can open it, no sign-in needed
+  README embed: ${escape(origin)}/c/Qk3vZp9xLm2aRt8yWn4bCg.svg
+  remove: pr-lens canvas delete</code></pre>
+<p>The skill's own instructions say that link will be
+<code>prlens.dev/c/{id}</code>. It will not; it will be this host. A prlens.dev
+link means the variable did not reach the CLI.</p>
+
+<h3>Pushing again</h3>
+<p>The same canvas, updated in place. The link does not change, so one you have
+already shared keeps working:</p>
+<pre><code>$ claude "add the retry queue to that diagram"
+
+✓ ${escape(origin)}/c/Qk3vZp9xLm2aRt8yWn4bCg &mdash; rev 2 &middot; 4 diagrams</code></pre>
+<p>Notice that the push printed no write token. It is saved in
+<code>.pr-lens/canvas.json</code> alongside this host's address, and the CLI keeps
+that file out of git. To take over a canvas on another machine, hand it the edit
+link instead:</p>
+<pre><code>npx @coldtea/pr-lens-cli@latest canvas pull '${escape(origin)}/c/{id}#w={token}'</code></pre>
+
+<h3>Embedding one in a README</h3>
+<pre><code>![Architecture after this change](${escape(origin)}/c/{id}.svg)</code></pre>
+<p>That is the <code>README embed</code> line above. It serves the top view and
+follows the canvas, so the picture updates when you push. Each individual render also has an address of its own containing
+its content hash, which never changes and may be cached for ever.</p>
 
 <h3>Links are the permission</h3>
-<p class="warn">There are no accounts here. Anyone holding a canvas's view link
-can read it, and anyone holding the write token can overwrite or delete it. The
-token rides in the link's <code>#fragment</code>, which a browser never sends to
-a server &mdash; so share view links freely and edit links carefully.</p>
+<p class="warn">There are no accounts here. Anyone holding a view link can read
+that canvas, and anyone holding the write token can overwrite or delete it. The
+token rides in the link's <code>#fragment</code>, which a browser never sends to a
+server &mdash; so share view links freely and edit links carefully.</p>
 
 <h3>This server</h3>
 <dl>
 <dt>Canvas API</dt><dd>version 1</dd>
 <dt>Version</dt><dd>${escape(VERSION)}</dd>
+<dt>Canvases</dt><dd>${countText(facts.count)}</dd>
 <dt>Store</dt><dd>${escape(facts.store)}${facts.store === "memory" ? " &mdash; forgets every canvas when this process restarts" : ""}</dd>
 <dt>Diagrams</dt><dd>${facts.draws ? "drawn on push" : "not drawn; every answer reports 0 diagrams"}</dd>
 </dl>
@@ -241,3 +272,9 @@ a server &mdash; so share view links freely and edit links carefully.</p>
 </footer>
 </main>`,
   );
+
+const countText = (count: Facts["count"]): string => {
+  if (count === undefined) return "&mdash;";
+  if (count.canvases === 0) return "none yet";
+  return `${count.atLeast ? "at least " : ""}${count.canvases.toLocaleString("en-GB")}`;
+};

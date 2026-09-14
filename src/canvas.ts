@@ -298,6 +298,11 @@ export class CanvasService {
     return this.#store.ping();
   }
 
+  /** For the index page. Decoration, so a store that cannot say answers nothing. */
+  async count(): Promise<{ canvases: number; atLeast: boolean } | undefined> {
+    return this.#store.count().catch(() => undefined);
+  }
+
   /** A canvas that exists and has been pushed to at least once. */
   async #readPushed(id: string): Promise<Stored> {
     if (!isSecret(id)) throw notFound();

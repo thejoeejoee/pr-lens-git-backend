@@ -70,17 +70,20 @@ const route = async (
   const query = new URL(req.url ?? "/", "http://localhost").searchParams;
   const origin = originOf(req, config);
 
-  // Somebody pasted the host into a browser. Tell them what this is, in terms
-  // that are true of any deployment: nothing here names the store's project or
-  // any canvas, so the page is the same for everyone and may be cached as such.
+  // Somebody pasted the host into a browser. Tell them what this is, and mostly
+  // how to point a working setup at it rather than at prlens.dev. Not cached: the
+  // canvas count on it would go stale, and it is one small page.
   if (path === "/" && (method === "GET" || method === "HEAD")) {
     if (!config.indexPage) throw notFound();
     sendText(
       res,
       200,
       "text/html; charset=utf-8",
-      indexPage(origin, { store: config.store, draws: config.draw }),
-      { "cache-control": "public, max-age=300" },
+      indexPage(origin, {
+        store: config.store,
+        draws: config.draw,
+        count: await service.count(),
+      }),
     );
     return;
   }
