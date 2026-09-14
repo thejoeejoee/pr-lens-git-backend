@@ -43,8 +43,14 @@ they depend on, both defaults:
 ### 4. Provenance needs a public repository
 
 `npm publish --provenance` fails on a private repository. This one is public, so
-nothing to do — but if you ever make it private, drop `--provenance` and
-`publishConfig.provenance` at the same time.
+nothing to do — but if you ever make it private, drop the `--provenance` flag
+from the workflow at the same time.
+
+Provenance is asked for by that flag and nowhere else, deliberately.
+`publishConfig.provenance` in `package.json` would demand it on every publish
+including a local one, which cannot produce it: provenance is signed by a CI
+provider's OIDC token, so outside CI npm fails with
+`Automatic provenance generation not supported for provider: null`.
 
 ## Then, for each release
 
@@ -72,6 +78,19 @@ gh run watch --exit-status
 | npm | `pr-lens-gitlab-backend`, holding `dist/` only — `prepare` builds it, so the sources never ship |
 | image | `ghcr.io/thejoeejoee/pr-lens-gitlab-backend:{version}`, plus `{major}.{minor}`, `{major}` and `latest`, for amd64 and arm64, with a build attestation |
 | chart | `oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend:{version}`, also attached to the run as an artifact |
+
+## Publishing by hand
+
+The workflow is the supported path, but nothing stops a local publish — it just
+cannot be signed:
+
+```bash
+npm publish --access public
+```
+
+The tarball is identical; it simply arrives without a provenance attestation, so
+npm shows no link back to the commit it was built from. Worth it to unblock a
+first release, worth undoing afterwards.
 
 ## Re-running one
 
