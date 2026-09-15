@@ -428,9 +428,26 @@ describe("the pages and the pictures", () => {
     assert.equal(response.status, 200);
     assert.match(response.headers.get("content-type") ?? "", /text\/html/);
     assert.match(html, /<h1>/);
-    // Nothing off this origin, and no script at all.
-    assert.doesNotMatch(html, /<script/i);
+    // Nothing off this origin: the only script is inline, with no src to fetch.
+    assert.doesNotMatch(html, /<script[^>]*\ssrc=/i);
     assert.doesNotMatch(html, /https?:\/\/(?!127\.0\.0\.1)/);
+  });
+
+  it("carries the theme switcher, and the state it needs to survive a reload", async () => {
+    const html = await (await fetch(`${harness.url}/c/${id}`)).text();
+
+    // One of three, and the picture's media query is what a choice overrides,
+    // since a chosen theme does not move the browser's own preference.
+    for (const choice of ["light", "dark", "auto"])
+      assert.match(html, new RegExp(`data-theme-choice="${choice}"`), choice);
+    assert.match(html, /role="radiogroup"/);
+    assert.match(html, /localStorage\.setItem/);
+    assert.match(html, /prefers-color-scheme: dark/);
+
+    // The attribute lands in <head>, before anything is painted.
+    const head = html.slice(0, html.indexOf("</head>"));
+    assert.match(head, /<script>/, "a reader who chose dark must not see a flash");
+    assert.match(head, /dataset\.theme/);
   });
 
   it("serves the hero as an SVG at /c/{id}.svg, with its render as the etag", async () => {
@@ -492,7 +509,11 @@ describe("the index page", () => {
     assert.equal(response.status, 200);
     assert.match(response.headers.get("content-type") ?? "", /text\/html/);
     assert.match(html, /PR Lens canvas server/);
-    assert.doesNotMatch(html, /<script/i);
+    assert.doesNotMatch(html, /<script[^>]*\ssrc=/i);
+    // The same switcher, reading the same key, so a choice made on a canvas page
+    // is still in force here.
+    assert.match(html, /data-theme-choice="auto"/);
+    assert.match(html, /"pr-lens-theme"/);
   });
 
   it("shows how to redirect the skill and the CLI at this host", async () => {

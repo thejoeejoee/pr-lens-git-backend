@@ -8,8 +8,9 @@ import { VERSION } from "./version.ts";
  * The contract says nothing about any of them. It only asks that the canvas page
  * sit at `/c/{id}`, so that a link pasted into `pr-lens canvas pull` is
  * recognised and its origin taken as the API. Everything below that is this
- * server's own idea of what to show, and deliberately a small one — no scripts,
- * no fonts, no requests off this origin for anything that renders.
+ * server's own idea of what to show, and deliberately a small one — no fonts, no
+ * requests off this origin for anything that renders, and the one script inline
+ * and doing one thing: remembering which theme the reader picked.
  *
  * The write token never reaches here. It travels in the URL fragment, which the
  * browser sends to no server, so nothing on these pages can leak it.
@@ -28,6 +29,84 @@ const escape = (text: string): string =>
       })[character] ?? character,
   );
 
+/** Where the reader's choice is kept, and the three things it may say. */
+const THEME_KEY = "pr-lens-theme";
+
+/**
+ * The switcher, top right of every page. A radio group rather than three
+ * buttons, because that is what it is: one of three, always exactly one.
+ *
+ * "Auto" is the absence of a choice, not a fourth colour — it hands the page
+ * back to `prefers-color-scheme`, which is where it started.
+ *
+ * A radio group is one tab stop with arrow keys inside it, so the checked button
+ * carries the only `tabindex="0"` and the script moves it along with the choice.
+ */
+const THEMES = `<div class="themes" role="radiogroup" aria-label="Colour theme">
+  <button type="button" role="radio" aria-checked="false" tabindex="-1" data-theme-choice="light">Light</button>
+  <button type="button" role="radio" aria-checked="false" tabindex="-1" data-theme-choice="dark">Dark</button>
+  <button type="button" role="radio" aria-checked="true" tabindex="0" data-theme-choice="auto">Auto</button>
+</div>`;
+
+/**
+ * Inline in `<head>`, so the attribute is on `<html>` before the first paint and
+ * a reader who chose dark never sees a white page flash past.
+ *
+ * `localStorage` is read inside a `try`: a browser set to refuse storage throws
+ * on the read itself, and the page is meant to work there too, just forgetfully.
+ */
+const THEME_BOOT = `(function(){try{
+var t=localStorage.getItem(${JSON.stringify(THEME_KEY)});
+if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;
+}catch(e){}
+document.documentElement.dataset.js="";})();`;
+
+/**
+ * At the end of `<body>`, where the control and the pictures exist.
+ *
+ * The pictures are the part a stylesheet cannot reach: a `<source media>` is
+ * matched against the browser's own `prefers-color-scheme`, which a chosen theme
+ * does not change. So the choice is written into the media query itself —
+ * `all` to force the dark render, `not all` to rule it out, and the original
+ * query back again for auto. Rewriting `media` makes the browser re-pick the
+ * source, so one render is fetched, not both.
+ */
+const THEME_WIRING = `(function(){
+var root=document.documentElement;
+var key=${JSON.stringify(THEME_KEY)};
+var buttons=document.querySelectorAll("[data-theme-choice]");
+function apply(choice){
+  if(choice==="light"||choice==="dark")root.dataset.theme=choice;else delete root.dataset.theme;
+  var media=choice==="dark"?"all":choice==="light"?"not all":"(prefers-color-scheme: dark)";
+  var sources=document.querySelectorAll("picture > source");
+  for(var i=0;i<sources.length;i++)sources[i].media=media;
+  for(var j=0;j<buttons.length;j++){
+    var on=buttons[j].dataset.themeChoice===choice;
+    buttons[j].setAttribute("aria-checked",String(on));
+    buttons[j].tabIndex=on?0:-1;
+  }
+}
+var saved;try{saved=localStorage.getItem(key);}catch(e){}
+var current=saved==="light"||saved==="dark"?saved:"auto";
+apply(current);
+for(var k=0;k<buttons.length;k++)buttons[k].addEventListener("click",function(){
+  current=this.dataset.themeChoice;
+  apply(current);
+  try{current==="auto"?localStorage.removeItem(key):localStorage.setItem(key,current);}catch(e){}
+});
+var group=document.querySelector(".themes");
+if(group)group.addEventListener("keydown",function(event){
+  var step=event.key==="ArrowRight"||event.key==="ArrowDown"?1:
+    event.key==="ArrowLeft"||event.key==="ArrowUp"?-1:0;
+  var at=Array.prototype.indexOf.call(buttons,document.activeElement);
+  if(step===0||at<0)return;
+  event.preventDefault();
+  var next=buttons[(at+step+buttons.length)%buttons.length];
+  next.focus();
+  next.click();
+});
+})();`;
+
 /**
  * One stylesheet, inline, for both pages. Inline because a second request for a
  * stylesheet is a second thing to cache, invalidate and get wrong, and this is
@@ -42,6 +121,11 @@ const shell = (title: string, body: string): string => `<!doctype html>
 <meta name="referrer" content="no-referrer">
 <title>${escape(title)}</title>
 <style>
+/*
+ * Light is the plain reading of :root; dark arrives twice, once for the reader
+ * who never touched the switcher and once for the one who chose it. Neither
+ * colour is only ever defined inside a query, so a token always has a value.
+ */
 :root {
   color-scheme: light dark;
   --ink: #1b1b1f;
@@ -50,10 +134,15 @@ const shell = (title: string, body: string): string => `<!doctype html>
   --card: #ffffff;
   --edge: #e4e4ea;
   --accent: #6d4aff;
+  /* Text on the accent, which is dark once the accent itself is a pale one. */
+  --on-accent: #ffffff;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --ink: #ececf1; --dim: #9a9aa5; --page: #14141a; --card: #1c1c24; --edge: #2c2c37; --accent: #a894ff; }
+  :root:not([data-theme="light"]) { --ink: #ececf1; --dim: #9a9aa5; --page: #14141a; --card: #1c1c24; --edge: #2c2c37; --accent: #a894ff; --on-accent: #14141a; }
 }
+:root[data-theme="dark"] { --ink: #ececf1; --dim: #9a9aa5; --page: #14141a; --card: #1c1c24; --edge: #2c2c37; --accent: #a894ff; --on-accent: #14141a; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 * { box-sizing: border-box; }
 body {
   margin: 0;
@@ -96,10 +185,50 @@ dt { color: var(--dim); }
 dd { margin: 0; font-variant-numeric: tabular-nums; }
 footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--edge); color: var(--dim); font-size: .85rem; }
 .warn { border-left: 2px solid var(--accent); padding-left: .9rem; color: var(--dim); }
+
+/*
+ * The switcher. Hidden until the script says it is alive, because a control that
+ * cannot remember anything is worse than no control at all.
+ */
+.themes { display: none; }
+:root[data-js] .themes {
+  display: flex;
+  position: fixed;
+  top: .9rem;
+  right: .9rem;
+  z-index: 1;
+  gap: .125rem;
+  padding: .1875rem;
+  background: var(--card);
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+}
+.themes button {
+  appearance: none;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--dim);
+  padding: .3rem .7rem;
+  border-radius: 999px;
+  font: inherit;
+  font-size: .8rem;
+  line-height: 1.2;
+}
+.themes button:hover { color: var(--ink); }
+.themes button[aria-checked="true"] { background: var(--accent); color: var(--on-accent); }
+.themes button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 30rem) {
+  :root[data-js] .themes { top: .5rem; right: .5rem; }
+  .themes button { padding: .3rem .55rem; font-size: .75rem; }
+}
 </style>
+<script>${THEME_BOOT}</script>
 </head>
 <body>
+${THEMES}
 ${body}
+<script>${THEME_WIRING}</script>
 </body>
 </html>
 `;
@@ -125,8 +254,8 @@ export const heroSvg = (
 
 /**
  * A `<picture>` per tile: the dark render behind a media query, the light one as
- * the fallback. Which means the page follows the reader's theme with no
- * stylesheet trickery and no script at all.
+ * the fallback. Which means the page follows the reader's system theme on its
+ * own, and the switcher only has to edit that one media query to override it.
  */
 const tileFigure = (
   origin: string,
