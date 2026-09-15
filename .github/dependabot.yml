@@ -1,7 +1,11 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
+# Every place a version is written down in this repository, and who updates it.
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# The commit prefixes are not decoration: release-please reads them. `fix`
+# cuts a patch release, `chore` and `ci` are hidden and cut nothing. So
+# anything that ships to a user — a runtime dependency, the base image, the
+# sidecar in the chart — lands as `fix`, because a bump nobody releases is a
+# bump nobody receives. Everything that stays in this repository is `chore`.
 
 version: 2
 updates:
@@ -9,3 +13,44 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    commit-message:
+      prefix: "fix"
+      prefix-development: "chore"
+      include: "scope"
+
+  # The three FROM lines name the same image, so this is one pull request that
+  # rewrites all three, not three.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    commit-message:
+      prefix: "fix"
+      include: "scope"
+
+  # Chart.yaml has no dependencies today; this is here for values.yaml, where
+  # the Varnish sidecar is pinned. The chart's own image is skipped because its
+  # tag is empty on purpose: it resolves to appVersion, which release-please
+  # writes.
+  - package-ecosystem: "helm"
+    directory: "/charts/pr-lens-gitlab-backend"
+    schedule:
+      interval: "daily"
+    commit-message:
+      prefix: "fix"
+      include: "scope"
+    ignore:
+      - dependency-name: "ghcr.io/thejoeejoee/pr-lens-gitlab-backend"
+
+  # Actions never reach a user, so these are `ci` and release nothing. Grouped
+  # because the alternative is eight pull requests that all say v7 to v8.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    groups:
+      actions:
+        patterns: ["*"]
