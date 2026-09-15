@@ -20,6 +20,11 @@ export type FakeGitLab = {
   files: Map<string, { content: string; lastCommitId: string }>;
   /** Commits refused with a branch-level conflict before one is allowed. */
   branchCollisions: number;
+  /**
+   * The branch-race sentences served so far, oldest first. Mutable, so a test
+   * can empty it and start the wordings again from the first.
+   */
+  branchRefusals: string[];
   /** Requests answered 429 before one is allowed. */
   throttles: number;
   readonly commits: number;
@@ -30,11 +35,21 @@ export type FakeGitLab = {
 
 const FILE_CHANGED =
   "You are attempting to update a file that has changed since you started editing it.";
-const BRANCH_MOVED = "Could not update refs/heads/main. Please refresh and try again.";
+/**
+ * A branch-tip race, in both the wordings GitLab has used for it: its own
+ * sentence about refs/heads, and the raw Gitaly error newer versions pass
+ * through. They are served in turn, so a test asking for two collisions sees
+ * both and the store has to read both as the same thing.
+ */
+const BRANCH_MOVED = [
+  "Could not update refs/heads/main. Please refresh and try again.",
+  "9:reference update: reference does not point to expected object.",
+];
 const EXISTS = "A file with this name already exists";
 
 export const startFakeGitLab = async (): Promise<FakeGitLab> => {
   const files = new Map<string, { content: string; lastCommitId: string }>();
+  const branchRefusals: string[] = [];
   const state = {
     branchCollisions: 0,
     throttles: 0,
@@ -106,7 +121,9 @@ export const startFakeGitLab = async (): Promise<FakeGitLab> => {
 
         if (state.branchCollisions > 0) {
           state.branchCollisions -= 1;
-          answer(400, { message: BRANCH_MOVED });
+          const message = BRANCH_MOVED[branchRefusals.length % BRANCH_MOVED.length] as string;
+          branchRefusals.push(message);
+          answer(400, { message });
           return;
         }
 
@@ -163,6 +180,7 @@ export const startFakeGitLab = async (): Promise<FakeGitLab> => {
   return {
     baseUrl: `http://127.0.0.1:${port}`,
     files,
+    branchRefusals,
     get branchCollisions() {
       return state.branchCollisions;
     },
