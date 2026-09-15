@@ -96,6 +96,15 @@ jobs:
             --set secretName=pr-lens-gitlab \
             --set ingress.enabled=true > /dev/null
 
+      - name: it renders with several ingress hosts
+        run: |
+          helm template lens charts/pr-lens-gitlab-backend \
+            --set config.gitlab.project=group/canvases \
+            --set secretName=pr-lens-gitlab \
+            --set ingress.enabled=true \
+            --set 'ingress.hosts={a.example.com,b.example.com}' \
+            | grep -c '^    - host:' | grep -qx 2
+
       - name: it renders with a Gateway API route
         run: |
           helm template lens charts/pr-lens-gitlab-backend \
@@ -118,6 +127,17 @@ jobs:
           docker run --rm \
             -v "$PWD/charts/pr-lens-gitlab-backend/files:/vcl:ro" \
             varnish:9 varnishd -C -f /vcl/default.vcl > /dev/null
+
+      - name: an ingress with no host at all is refused
+        run: |
+          if helm template lens charts/pr-lens-gitlab-backend \
+            --set config.gitlab.project=group/canvases \
+            --set secretName=pr-lens-gitlab \
+            --set ingress.enabled=true \
+            --set ingress.host= > /dev/null 2>&1; then
+            echo "the chart should have insisted on a host" >&2
+            exit 1
+          fi
 
       - name: a gitlab store without a Secret is refused
         run: |

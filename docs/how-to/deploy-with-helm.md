@@ -32,6 +32,35 @@ helm install lens oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend \
 ```
 <!-- x-release-please-end -->
 
+## More than one host
+
+A release often answers on two names — the canonical one and an internal or
+staging one pointing at the same backend. `ingress.hosts` takes the list, and
+every host gets the same rule, because they are the same server:
+
+```yaml
+ingress:
+  enabled: true
+  hosts:
+    - pr-lens.cdn.example.com
+    - pr-lens.test.cdn.example.com
+  tls:
+    - secretName: lens-tls
+      hosts: [pr-lens.cdn.example.com, pr-lens.test.cdn.example.com]
+
+config:
+  publicUrl: https://pr-lens.cdn.example.com
+```
+
+`ingress.host` still works and is the single-host spelling of the same thing;
+setting the list ignores it.
+
+Set `config.publicUrl` when you do this. Without it every answer names whichever
+host the request arrived on, so the same canvas pushed through the internal name
+comes back as an internal link — a link somebody then pastes into a README that
+readers outside the cluster cannot open. With it, every answer names the
+canonical host no matter which one the push arrived on.
+
 For Gateway API instead of an Ingress:
 
 ```bash

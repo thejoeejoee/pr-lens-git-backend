@@ -52,8 +52,22 @@ ingress:
   annotations: {}
   # The host answers become addresses under, and what config.publicUrl names.
   host: lens.example.com
+  # More than one, for a release reachable under an internal name and a canonical
+  # one at the same time. Set it and `host` above is ignored; every host gets the
+  # same rule, since they are the same server.
+  #
+  #   hosts:
+  #     - pr-lens.cdn.example.com
+  #     - pr-lens.test.cdn.example.com
+  #
+  # Set config.publicUrl to the canonical one when you do: without it a canvas
+  # pushed through either host comes back as a link to that host, so the same
+  # canvas ends up with two addresses.
+  hosts: []
   path: /
   pathType: Prefix
+  # Written out as the Ingress takes it, so one certificate may cover several
+  # hosts, or each host may have its own entry.
   tls: []
   #  - secretName: lens-tls
   #    hosts: [lens.example.com]
