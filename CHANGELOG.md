@@ -4,6 +4,15 @@ Kept by [release-please](https://github.com/googleapis/release-please) from the
 conventional-commit subjects on `main`. Everything below 0.3.0 was written by
 hand, because the two releases before it predate that setup.
 
+## [0.6.0](https://github.com/thejoeejoee/pr-lens-git-backend/compare/v0.5.0...v0.6.0) (2026-09-15)
+
+
+### Features
+
+* rename to pr-lens-git-backend ([b6c67bd](https://github.com/thejoeejoee/pr-lens-git-backend/commit/b6c67bda7cb40928fbc60f235561a1d43be5911b))
+* **store:** speak git to any remote, not GitLab's API ([4d8929c](https://github.com/thejoeejoee/pr-lens-git-backend/commit/4d8929c71b43c723a7f672d1dfbdbabefd92f990))
+* **store:** speak git to any remote, not GitLab's API ([15bed7e](https://github.com/thejoeejoee/pr-lens-git-backend/commit/15bed7eee947706028259d284017d918a0c6a27c))
+
 ## [0.5.0](https://github.com/thejoeejoee/pr-lens-gitlab-backend/compare/v0.4.0...v0.5.0) (2026-09-15)
 
 
