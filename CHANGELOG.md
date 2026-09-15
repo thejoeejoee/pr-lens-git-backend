@@ -4,6 +4,23 @@ Kept by [release-please](https://github.com/googleapis/release-please) from the
 conventional-commit subjects on `main`. Everything below 0.3.0 was written by
 hand, because the two releases before it predate that setup.
 
+## [0.4.0](https://github.com/thejoeejoee/pr-lens-gitlab-backend/compare/v0.3.1...v0.4.0) (2026-09-15)
+
+
+### Features
+
+* **pages:** a light/dark/auto switcher the reader's browser remembers ([e3476f4](https://github.com/thejoeejoee/pr-lens-gitlab-backend/commit/e3476f4cb5e10577fb16209c80968a012ed163ee))
+* **pages:** a theme switcher, and your own Markdown page at / ([29986bc](https://github.com/thejoeejoee/pr-lens-gitlab-backend/commit/29986bc0135eafc778ebf30edb4dac5f0f0094d1))
+* **pages:** let the mounted page hold HTML, but nothing that executes ([d10f47c](https://github.com/thejoeejoee/pr-lens-gitlab-backend/commit/d10f47cef9db715307a4511a230f559161a01e2f))
+* **pages:** serve a Markdown page of your own at / ([4225fdf](https://github.com/thejoeejoee/pr-lens-gitlab-backend/commit/4225fdfb92ae5bfc42f6ecc478fc2a457a7dcc4c))
+
+
+### Bug Fixes
+
+* **gitlab:** retry Gitaly's wording of a lost branch tip ([093806b](https://github.com/thejoeejoee/pr-lens-gitlab-backend/commit/093806b98ea12ec5ef1d6df98974e0df5b1f86df))
+* **gitlab:** retry Gitaly's wording of a lost branch tip ([9ed0cb7](https://github.com/thejoeejoee/pr-lens-gitlab-backend/commit/9ed0cb7962099d993f1f667d9c85e23acb5dc52a))
+* **pages:** close what the review found in the mounted page's rendering ([17fd7ca](https://github.com/thejoeejoee/pr-lens-gitlab-backend/commit/17fd7ca4b3f66a013c7ffdfe54a387c082ab8fe3))
+
 ## [0.3.1](https://github.com/thejoeejoee/pr-lens-gitlab-backend/compare/v0.3.0...v0.3.1) (2026-09-14)
 
 
