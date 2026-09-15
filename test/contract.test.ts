@@ -453,6 +453,43 @@ describe("the pages and the pictures", () => {
     assert.match(head, /dataset\.theme/);
   });
 
+  it("addresses its pictures by path, so they are this origin whatever PUBLIC_URL says", async () => {
+    // A deployment behind an ingress that reverses https to http, or one whose
+    // PUBLIC_URL names another host, would otherwise emit absolute URLs that the
+    // page's own `img-src 'self'` refuses.
+    const proxied = await start({
+      LOG_REQUESTS: "false",
+      PUBLIC_URL: "https://lens.example.com",
+    });
+    try {
+      const minted = await call(`${proxied.url}/api/canvas`, { method: "POST" });
+      await call(`${proxied.url}/api/canvas/${minted.body.id}`, {
+        method: "PUT",
+        headers: {
+          ...json,
+          authorization: `Bearer ${minted.body.writeToken}`,
+          "if-match": "0",
+        },
+        body: JSON.stringify(payloadGraph),
+      });
+
+      const html = await (await fetch(`${proxied.url}/c/${minted.body.id}`)).text();
+      assert.match(html, /src="\/images\//);
+      assert.match(html, /srcset="\/images\//);
+      assert.doesNotMatch(html, /"https:\/\/lens\.example\.com/);
+
+      // The API answers still carry absolute ones: a README embed is fetched
+      // from somewhere else entirely.
+      const fetched = await call(`${proxied.url}/api/canvas/${minted.body.id}`);
+      assert.match(
+        fetched.body.tiles[0].images.light,
+        /^https:\/\/lens\.example\.com\/images\//,
+      );
+    } finally {
+      await proxied.close();
+    }
+  });
+
   it("touches only the pictures this server drew", async () => {
     const html = await (await fetch(`${harness.url}/c/${id}`)).text();
 
