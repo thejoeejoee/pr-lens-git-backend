@@ -1,5 +1,5 @@
 import type { Canvas } from "./canvas.ts";
-import { imageUrl } from "./urls.ts";
+import { imagePath } from "./urls.ts";
 import { VERSION } from "./version.ts";
 
 /**
@@ -309,9 +309,11 @@ export const heroSvg = (
  * A `<picture>` per tile: the dark render behind a media query, the light one as
  * the fallback. Which means the page follows the reader's system theme on its
  * own, and the switcher only has to edit that one media query to override it.
+ *
+ * The addresses are paths rather than URLs, so they are this origin by
+ * construction — whatever the reader typed, and whatever `PUBLIC_URL` says.
  */
 const tileFigure = (
-  origin: string,
   id: string,
   tile: Canvas["drawing"]["tiles"][number],
 ): string => {
@@ -327,17 +329,14 @@ const tileFigure = (
     <p class="meta">${escape(tile.lens)}${trail === "" ? "" : ` &middot; ${escape(trail)}`}</p>
   </figcaption>
   <picture>
-    ${dark === undefined ? "" : `<source srcset="${escape(imageUrl(origin, id, dark))}" media="(prefers-color-scheme: dark)" data-theme-dark>`}
-    <img src="${escape(imageUrl(origin, id, light))}" width="${tile.width}" height="${tile.height}" alt="${escape(tile.title)}" loading="lazy">
+    ${dark === undefined ? "" : `<source srcset="${escape(imagePath(id, dark))}" media="(prefers-color-scheme: dark)" data-theme-dark>`}
+    <img src="${escape(imagePath(id, light))}" width="${tile.width}" height="${tile.height}" alt="${escape(tile.title)}" loading="lazy">
   </picture>
 </figure>`;
 };
 
-export const canvasPage = (
-  origin: string,
-  canvas: Canvas,
-  nonce: string,
-): string => {
+/** No origin: every address on this page is a path, and resolves against the reader's own. */
+export const canvasPage = (canvas: Canvas, nonce: string): string => {
   const title = canvas.document?.title ?? canvas.id;
   const summary = canvas.document?.summary;
   const tiles = canvas.drawing.tiles;
@@ -349,7 +348,7 @@ export const canvasPage = (
             ? ", because this server cannot read its schema version"
             : ""
         }.</p>`
-      : tiles.map((tile) => tileFigure(origin, canvas.id, tile)).join("\n");
+      : tiles.map((tile) => tileFigure(canvas.id, tile)).join("\n");
 
   return shell(
     title,

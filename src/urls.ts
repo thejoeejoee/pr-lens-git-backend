@@ -26,4 +26,18 @@ export const embedUrl = (origin: Origin, id: string): string =>
  * lets these be cached hard while the JSON routes stay `no-store`.
  */
 export const imageUrl = (origin: Origin, id: string, fileName: string): string =>
-  `${origin}/images/${id}/${fileName}`;
+  `${origin}${imagePath(id, fileName)}`;
+
+/**
+ * The same picture, as a path.
+ *
+ * What an API answer carries has to be absolute: it is copied into a README and
+ * fetched from somewhere else entirely. What the canvas page carries should not
+ * be. A path resolves against whatever host and scheme the reader actually
+ * typed, which is the one the page's `img-src 'self'` names — while an absolute
+ * URL is only right if `PUBLIC_URL` agrees with that down to the scheme, and
+ * behind an ingress that reverses `https` to `http` it does not. Then the
+ * pictures are refused by the page's own policy.
+ */
+export const imagePath = (id: string, fileName: string): string =>
+  `/images/${id}/${fileName}`;

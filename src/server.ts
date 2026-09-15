@@ -218,7 +218,7 @@ const route = async (
       res,
       200,
       "text/html; charset=utf-8",
-      canvasPage(origin, held, nonce),
+      canvasPage(held, nonce),
       { "content-security-policy": pageCsp(nonce, "self") },
     );
     return;
