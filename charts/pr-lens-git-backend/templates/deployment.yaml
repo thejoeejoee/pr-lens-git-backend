@@ -1,12 +1,12 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "pr-lens-gitlab-backend.fullname" . }}
-  labels: {{- include "pr-lens-gitlab-backend.labels" . | nindent 4 }}
+  name: {{ include "pr-lens-git-backend.fullname" . }}
+  labels: {{- include "pr-lens-git-backend.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
-    matchLabels: {{- include "pr-lens-gitlab-backend.selectorLabels" . | nindent 6 }}
+    matchLabels: {{- include "pr-lens-git-backend.selectorLabels" . | nindent 6 }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -18,7 +18,7 @@ spec:
       annotations: {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "pr-lens-gitlab-backend.selectorLabels" . | nindent 8 }}
+        {{- include "pr-lens-git-backend.selectorLabels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -26,10 +26,10 @@ spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets: {{- toYaml . | nindent 8 }}
       {{- end }}
-      # The server calls GitLab, never the Kubernetes API.
+      # The server talks to a git remote, never to the Kubernetes API.
       automountServiceAccountToken: false
       securityContext: {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      # Long enough for an in-flight push to finish its commit to GitLab.
+      # Long enough for an in-flight push to reach the remote.
       terminationGracePeriodSeconds: 60
       containers:
         - name: server
@@ -40,17 +40,17 @@ spec:
             - name: http
               containerPort: 8787
               protocol: TCP
-          env: {{- include "pr-lens-gitlab-backend.env" . | nindent 12 }}
-          {{- if eq .Values.config.store "gitlab" }}
+          env: {{- include "pr-lens-git-backend.env" . | nindent 12 }}
+          {{- with .Values.secretName }}
           envFrom:
-            # GITLAB_TOKEN lives here, so it is never part of the pod spec.
+            # GIT_TOKEN lives here, so it is never part of the pod spec.
             # Kubernetes lets the explicit env above win a name clash, so this
             # Secret can add settings but never quietly replace one.
             - secretRef:
-                name: {{ required "secretName is required when config.store is gitlab: a Secret holding GITLAB_TOKEN" .Values.secretName }}
+                name: {{ . }}
           {{- end }}
           # Liveness asks only whether this process is up. Readiness asks whether
-          # GitLab is answering, which is what should take a pod out of the
+          # the remote is answering, which is what should take a pod out of the
           # Service without restarting it.
           livenessProbe:
             httpGet:
@@ -74,7 +74,8 @@ spec:
             failureThreshold: 30
           resources: {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
-            # The only writable path: the root filesystem is read-only.
+            # The only writable path, and where the git mirror lives: the root
+            # filesystem is read-only.
             - name: tmp
               mountPath: /tmp
             {{- if .Values.config.indexMarkdown }}
@@ -136,16 +137,16 @@ spec:
       volumes:
         - name: tmp
           emptyDir:
-            sizeLimit: 64Mi
+            sizeLimit: {{ .Values.tmpSize }}
         {{- if .Values.config.indexMarkdown }}
         - name: index
           configMap:
-            name: {{ include "pr-lens-gitlab-backend.suffixed" (dict "root" . "suffix" "index") }}
+            name: {{ include "pr-lens-git-backend.suffixed" (dict "root" . "suffix" "index") }}
         {{- end }}
         {{- if .Values.cache.enabled }}
         - name: cache-config
           configMap:
-            name: {{ include "pr-lens-gitlab-backend.suffixed" (dict "root" . "suffix" "cache") }}
+            name: {{ include "pr-lens-git-backend.suffixed" (dict "root" . "suffix" "cache") }}
         - name: cache-workdir
           # Memory-backed because varnishd mmaps its shared log here and wants it
           # fast -- which also means this counts against the memory limit.

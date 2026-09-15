@@ -14,18 +14,21 @@ secrets, not to a chart release. Every key in the Secret arrives as an
 environment variable.
 
 ```bash
-kubectl create secret generic pr-lens-gitlab \
-  --from-literal=GITLAB_TOKEN=glpat-…
+kubectl create secret generic pr-lens-git \
+  --from-literal=GIT_TOKEN=glpat-…
 ```
+
+An ssh remote needs no Secret at all — leave `secretName` empty and mount a key
+instead, as [connect a remote](connect-a-remote.md#over-ssh-with-a-key) shows.
 
 ## Install
 
 <!-- x-release-please-start-version -->
 ```bash
-helm install lens oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend \
+helm install lens oci://ghcr.io/thejoeejoee/charts/pr-lens-git-backend \
   --version 0.5.0 \
-  --set secretName=pr-lens-gitlab \
-  --set config.gitlab.project=platform/pr-lens-canvases \
+  --set secretName=pr-lens-git \
+  --set config.git.remote=https://gitlab.example.com/platform/pr-lens-canvases.git \
   --set config.publicUrl=https://lens.example.com \
   --set ingress.enabled=true \
   --set ingress.host=lens.example.com
@@ -87,7 +90,22 @@ are per-pod rather than shared:
 - the read cache, so one pod can be up to `READ_CACHE_TTL_MS` behind another
 
 Neither can corrupt anything — see
-[Why GitLab works](../explanation/why-gitlab.md) for why a stale read is safe.
+[Why git works](../explanation/why-git.md) for why a stale read is safe.
+
+Each pod keeps its own mirror of the repository, in the `emptyDir` at `/tmp`.
+They never have to agree: a push is a fast-forward or it is refused, so a pod
+whose mirror is behind finds that out from the remote and fetches. A pod that
+moves loses its mirror and clones again, which costs a moment and no canvases.
+
+What replicas do share is the branch tip, and that is the one thing worth sizing
+for. Writes land one at a time across the whole deployment — not per pod — so a
+pod queues its own writes rather than racing them, and what is left contending is
+one push per pod. Two pods cost nothing for that; each extra pod is another
+contender for the same tip, and a burst of writes drains at roughly one push per
+round trip whatever the replica count is.
+
+Reads do not share anything and scale with replicas as you would expect, which is
+the direction that actually needs the pods.
 
 ## Say what this host is, in your own words
 
@@ -116,7 +134,7 @@ and says which HTML that page may hold: everything except what executes.
 ## Probes
 
 `/healthz` is liveness and asks only whether the process is up. `/readyz` is
-readiness and asks GitLab, so an unreachable GitLab takes pods out of the Service
-without restarting them in a loop.
+readiness and reaches the remote, so an unreachable remote takes pods out of the
+Service without restarting them in a loop.
 
-`charts/pr-lens-gitlab-backend/values.yaml` documents every setting.
+`charts/pr-lens-git-backend/values.yaml` documents every setting.

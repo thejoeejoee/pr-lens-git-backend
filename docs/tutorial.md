@@ -1,14 +1,16 @@
 # Your first canvas
 
 By the end of this you will have pushed a diagram to a server you run, stored in
-a GitLab repository you own, and opened it in a browser.
+a git repository you own, and opened it in a browser.
 
-You need Node 22.18 or newer, and a GitLab account. No clone, no checkout.
+You need Node 22.18 or newer, `git` on the path, and somewhere to put a
+repository — GitLab, GitHub, Gitea, or a host of your own. No clone, no checkout:
+the server does its own, and never checks anything out of it.
 
 ## 1. Run the server with no store at all
 
 ```bash
-STORE=memory npx pr-lens-gitlab-backend
+STORE=memory npx pr-lens-git-backend
 ```
 
 It says what it is doing and warns you that `PUBLIC_URL` is unset — fine here,
@@ -18,7 +20,7 @@ because it will name `localhost` and that is where you are.
 > from the repository instead. It builds itself on the way in:
 >
 > ```bash
-> STORE=memory npx github:thejoeejoee/pr-lens-gitlab-backend
+> STORE=memory npx github:thejoeejoee/pr-lens-git-backend
 > ```
 
 ## 2. Push something to it
@@ -39,21 +41,24 @@ the point of step 3.
 
 ## 3. Give it a repository to keep things in
 
-Create an empty private GitLab project — call it `pr-lens-canvases`. Then, in
-**Settings → Access tokens**, create a project access token with the `api` scope
-and the **Developer** role.
+Create an empty private repository — call it `pr-lens-canvases` — and a token
+that may write to it. On GitLab that is **Settings → Access tokens**, scope
+`write_repository`, Developer role; on GitHub, a fine-grained PAT with
+**Contents: read and write**. Other hosts are in
+[connect a remote](how-to/connect-a-remote.md).
 
 Stop the server and start it again pointed at both:
 
 ```bash
-STORE=gitlab \
-GITLAB_PROJECT=your-group/pr-lens-canvases \
-GITLAB_TOKEN=glpat-… \
-  npx pr-lens-gitlab-backend
+STORE=git \
+GIT_REMOTE=https://gitlab.com/your-group/pr-lens-canvases.git \
+GIT_TOKEN=glpat-… \
+  npx pr-lens-git-backend
 ```
 
-If the token or the project is wrong it refuses to start and says so, rather than
-accepting a push and losing it.
+If the token or the remote is wrong it refuses to start and says so, rather than
+accepting a push and losing it. An empty repository is fine — the first push
+makes the branch.
 
 ## 4. Push again, and look at the repository
 
@@ -61,14 +66,14 @@ accepting a push and losing it.
 npx @coldtea/pr-lens-cli canvas push
 ```
 
-Now open your GitLab project. There is a commit called `canvas <id>: rev 1`, and
+Now open your repository. There is a commit called `canvas <id>: rev 1`, and
 a file under `canvases/`. Push a second time and there is a second commit —
 `git log` over that file is the canvas's history.
 
 ## Where to go next
 
 - [Deploy with Helm](how-to/deploy-with-helm.md), for somewhere other than your laptop.
-- [Why GitLab works](explanation/why-gitlab.md), for what that commit is really doing.
+- [Why git works](explanation/why-git.md), for what that commit is really doing.
 - [Configuration](reference/configuration.md), for everything you can change.
 
 To work on the server rather than with it, clone it: `npm ci && npm test` needs

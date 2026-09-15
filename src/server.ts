@@ -17,7 +17,7 @@ import { canvasPage, heroSvg, indexPage, markdownPage, pageCsp } from "./page.ts
 import { DrawingCache } from "./render/cache.ts";
 import { bearerToken } from "./secrets.ts";
 import { CachedStore } from "./store/cached.ts";
-import { GitLabStore } from "./store/gitlab.ts";
+import { GitStore } from "./store/git.ts";
 import { MemoryStore } from "./store/memory.ts";
 import { StoreThrottled } from "./store/types.ts";
 
@@ -43,9 +43,9 @@ export type App = {
 
 export const createApp = (config: Config): App => {
   const backing =
-    config.store === "gitlab"
-      ? new GitLabStore(
-          config.gitlab ?? (() => { throw new Error("GitLab settings missing"); })(),
+    config.store === "git"
+      ? new GitStore(
+          config.git ?? (() => { throw new Error("git settings missing"); })(),
         )
       : new MemoryStore();
 
@@ -113,8 +113,8 @@ const route = async (
   }
 
   // Liveness is about this process; readiness is about the store behind it.
-  // Keeping them apart means a container health check does not spend a GitLab
-  // API call every few seconds.
+  // Keeping them apart means a container health check does not spend a round
+  // trip to the remote every few seconds.
   if (path === "/healthz" && (method === "GET" || method === "HEAD")) {
     sendJson(res, 200, { ok: true });
     return;
@@ -298,7 +298,7 @@ const refuse = (res: ServerResponse, error: unknown): void => {
     return;
   }
 
-  console.error("[pr-lens-gitlab-backend] unhandled", error);
+  console.error("[pr-lens-git-backend] unhandled", error);
   sendJson(res, 500, {});
 };
 

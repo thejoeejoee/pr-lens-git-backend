@@ -8,7 +8,7 @@ import {
 
 /**
  * The same contract, held in a Map. This exists so the routes can be tested
- * without a GitLab project, and so `STORE=memory` gives someone a server to
+ * without a repository, and so `STORE=memory` gives someone a server to
  * point the CLI at before they have decided where canvases should live. It
  * forgets everything when the process ends, which is the whole of its warning
  * label.

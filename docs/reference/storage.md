@@ -1,13 +1,13 @@
 # Storage layout
 
-One JSON file per canvas, in the repository named by `GITLAB_PROJECT`, on the
-branch named by `GITLAB_BRANCH`.
+One JSON file per canvas, in the repository named by `GIT_REMOTE`, on the branch
+named by `GIT_BRANCH`.
 
 ```
 canvases/Qk/Qk3vZp9xLm2aRt8yWn4bCg.json
 ```
 
-`canvases` is `GITLAB_PREFIX`. `Qk` is the first two characters of the id — a
+`canvases` is `GIT_PREFIX`. `Qk` is the first two characters of the id — a
 shard, so the tree never becomes one enormous directory. Nothing reads a
 directory listing; every lookup is by path.
 
@@ -31,8 +31,9 @@ directory listing; every lookup is by path.
 | `tokenHash` | SHA-256 of the write token, compared in constant time. The token itself is never stored. |
 | `document` | The graph document exactly as pushed. `null` until the first push. |
 
-Files are written base64-encoded, so a document holding any byte sequence
-survives the round trip without GitLab guessing at an encoding.
+The file is that JSON, pretty-printed at two spaces with a trailing newline, and
+nothing else — which is what the GitLab-API store wrote too, so a repository it
+filled is one this store reads and writes without a migration.
 
 ## Commits
 

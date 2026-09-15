@@ -52,9 +52,9 @@ CSS, so no `Vary` handling is needed.
 Cache was renamed to, now at 9.x) in the pod, in front of the server:
 
 ```bash
-helm upgrade --install lens oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend \
-  --set secretName=pr-lens-gitlab \
-  --set config.gitlab.project=platform/pr-lens-canvases \
+helm upgrade --install lens oci://ghcr.io/thejoeejoee/charts/pr-lens-git-backend \
+  --set secretName=pr-lens-git \
+  --set config.git.remote=https://gitlab.example.com/platform/pr-lens-canvases.git \
   --set cache.enabled=true
 ```
 
@@ -63,7 +63,7 @@ reachable through the Service — one way in, so nothing can bypass it.
 
 ### It needs no rules
 
-The [default VCL](../../charts/pr-lens-gitlab-backend/files/default.vcl) is about
+The [default VCL](../../charts/pr-lens-git-backend/files/default.vcl) is about
 twenty lines and says nothing about which paths to cache. It does not have to:
 the server already declares that with `Cache-Control`, and Vinyl reads `max-age`
 and `no-store` itself. So the table above is enforced without a second copy of it

@@ -33,6 +33,11 @@ FROM node:24-alpine3.22
 ENV NODE_ENV=production
 WORKDIR /app
 
+# The store is git invocations, so git is a runtime dependency rather than a
+# convenience -- about 15 MB, against a pure-JS implementation of the same
+# thing that would have to get packfile negotiation and ref locking right.
+RUN apk add --no-cache git
+
 # package.json comes along because "type": "module" is what makes dist/*.js ESM.
 COPY package.json ./
 COPY --from=deps /app/node_modules ./node_modules

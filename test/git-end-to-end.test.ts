@@ -1,39 +1,39 @@
 import assert from "node:assert/strict";
+import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { payloadGraph } from "@coldtea/pr-lens-schema/examples";
 
-import { startFakeGitLab, type FakeGitLab } from "./fake-gitlab.ts";
+import { startRemote, type Remote } from "./git-remote.ts";
 import { call, start, type Harness } from "./harness.ts";
 
 /**
- * The whole lifecycle from the spec's curl walkthrough, over a GitLab
- * repository. Same assertions as the in-memory run, so the backend is provably
- * an implementation detail rather than a different contract.
+ * The whole lifecycle from the spec's curl walkthrough, over a git repository.
+ * Same assertions as the in-memory run, so the backend is provably an
+ * implementation detail rather than a different contract.
  */
 
 const json = { "content-type": "application/json" };
 
-describe("a canvas lifecycle on a GitLab repository", () => {
-  let gitlab: FakeGitLab;
+describe("a canvas lifecycle on a git repository", () => {
+  let remote: Remote;
   let harness: Harness;
 
   before(async () => {
-    gitlab = await startFakeGitLab();
+    remote = await startRemote();
     harness = await start({
       LOG_REQUESTS: "false",
-      STORE: "gitlab",
-      GITLAB_URL: gitlab.baseUrl,
-      GITLAB_PROJECT: "group/canvases",
-      GITLAB_TOKEN: "glpat-test",
-      GITLAB_BRANCH: "main",
-      GITLAB_PREFIX: "canvases",
+      STORE: "git",
+      GIT_REMOTE: remote.url,
+      GIT_MIRROR_DIR: join(remote.scratch, "mirror.git"),
+      GIT_BRANCH: "main",
+      GIT_PREFIX: "canvases",
     });
   });
 
   after(async () => {
     await harness.close();
-    await gitlab.close();
+    await remote.close();
   });
 
   it("mints, pushes, refuses a stale push, fetches, rotates and deletes", async () => {
@@ -45,7 +45,7 @@ describe("a canvas lifecycle on a GitLab repository", () => {
     const auth = { authorization: `Bearer ${writeToken}` };
 
     // One file in the repository, and no document in it yet.
-    assert.equal(gitlab.files.size, 1);
+    assert.equal((await remote.files()).length, 1);
     assert.equal((await call(`${api}/${id}`)).status, 404);
 
     const pushed = await call(`${api}/${id}`, {
@@ -90,14 +90,37 @@ describe("a canvas lifecycle on a GitLab repository", () => {
     });
     assert.equal(deleted.status, 200);
     assert.deepEqual(deleted.body, { id, deleted: true });
-    assert.equal(gitlab.files.size, 0, "the file is gone from the repository");
+    assert.deepEqual(
+      await remote.files(),
+      [],
+      "the file is gone from the repository",
+    );
+
+    // Every write is a commit, and the log is the canvas's own history --
+    // including the revision the API will not serve any more.
+    //
+    // Not an exact list: a write whose bytes are already there composes the
+    // commit that is already there, and pushing it is a no-op rather than an
+    // empty commit. The second rotation sets the token it just set, so whether
+    // it leaves a fifth commit depends on which second it lands in.
+    const log = await remote.log();
+    assert.equal(log.at(0), `canvas ${id}: delete`);
+    assert.equal(log.at(-1), `canvas ${id}: mint`);
+    assert.ok(
+      log.filter((subject) => subject === `canvas ${id}: rev 1`).length >= 2,
+      `the push and the rotations are in ${JSON.stringify(log)}`,
+    );
   });
 
   it("never writes a token where a copy of the repository would reveal it", async () => {
     const minted = await call(`${harness.url}/api/canvas`, { method: "POST" });
     const { id, writeToken } = minted.body;
 
-    const stored = [...gitlab.files.values()].map((file) => file.content).join("\n");
+    const paths = await remote.files();
+    const stored = (
+      await Promise.all(paths.map(async (path) => remote.read(path)))
+    ).join("\n");
+
     assert.ok(stored.includes(id), "the id is in the repository");
     assert.ok(
       !stored.includes(writeToken),

@@ -364,7 +364,7 @@ ${body}
 
 /** What the index page says about the server behind it. */
 export type Facts = {
-  /** "gitlab" or "memory" — which is the difference between kept and forgotten. */
+  /** "git" or "memory" — which is the difference between kept and forgotten. */
   store: string;
   /** False means every answer carries `tiles: []`. */
   draws: boolean;
@@ -456,7 +456,7 @@ server &mdash; so share view links freely and edit links carefully.</p>
 </dl>
 
 <footer>
-<a href="https://github.com/thejoeejoee/pr-lens-gitlab-backend">pr-lens-gitlab-backend</a>
+<a href="https://github.com/thejoeejoee/pr-lens-git-backend">pr-lens-git-backend</a>
 &middot; <a href="https://github.com/coldteadotai/pr-lens/blob/main/docs/canvas-api.md">the canvas API</a>
 &middot; <a href="/healthz">healthz</a>
 </footer>

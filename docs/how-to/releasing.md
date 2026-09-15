@@ -32,7 +32,7 @@ published once:
 | --- | --- |
 | Publisher | GitHub Actions |
 | Organization or user | `thejoeejoee` |
-| Repository | `pr-lens-gitlab-backend` |
+| Repository | `pr-lens-git-backend` |
 | Workflow filename | `release.yml` — filename only, no path |
 | Environment name | `release` |
 | Allowed actions | publish directly |
@@ -162,7 +162,7 @@ Two settings keep it plain:
 ```
 
 Without the second, release-please names the tag after the package it released and
-the first 0.3.0 attempt came out as `pr-lens-gitlab-backend-v0.3.0`. The dispatch
+the first 0.3.0 attempt came out as `pr-lens-git-backend-v0.3.0`. The dispatch
 worked, the run started, and `verify` refused it — correctly, since that string is
 not a version — so nothing was published and the release looked silently lost.
 `check:versions` is what turned a wrong tag into a red run instead of a
@@ -172,9 +172,9 @@ mystery.
 
 | | |
 | --- | --- |
-| npm | `pr-lens-gitlab-backend`, holding `dist/` only — `prepare` builds it, so the sources never ship |
-| image | `ghcr.io/thejoeejoee/pr-lens-gitlab-backend:{version}`, plus `{major}.{minor}`, `{major}` and `latest`, for amd64 and arm64, with a build attestation |
-| chart | `oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend:{version}`, also attached to the run as an artifact |
+| npm | `pr-lens-git-backend`, holding `dist/` only — `prepare` builds it, so the sources never ship |
+| image | `ghcr.io/thejoeejoee/pr-lens-git-backend:{version}`, plus `{major}.{minor}`, `{major}` and `latest`, for amd64 and arm64, with a build attestation |
+| chart | `oci://ghcr.io/thejoeejoee/charts/pr-lens-git-backend:{version}`, also attached to the run as an artifact |
 
 ## Merging the release PR
 

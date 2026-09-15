@@ -1,10 +1,10 @@
 {{- if .Values.ingress.enabled }}
-{{- $fullName := include "pr-lens-gitlab-backend.fullname" . -}}
+{{- $fullName := include "pr-lens-git-backend.fullname" . -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ $fullName }}
-  labels: {{- include "pr-lens-gitlab-backend.labels" . | nindent 4 }}
+  labels: {{- include "pr-lens-git-backend.labels" . | nindent 4 }}
   {{- with .Values.ingress.annotations }}
   annotations: {{- toYaml . | nindent 4 }}
   {{- end }}
@@ -20,7 +20,7 @@ spec:
     # canonical one are the same server, and a canvas link is whichever host the
     # reader was given. Which is also why config.publicUrl matters more with two
     # than with one -- without it, a link minted through either names that one.
-    {{- range splitList "," (include "pr-lens-gitlab-backend.ingressHosts" .) }}
+    {{- range splitList "," (include "pr-lens-git-backend.ingressHosts" .) }}
     - host: {{ . | quote }}
       http:
         paths:
