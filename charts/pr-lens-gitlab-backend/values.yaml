@@ -178,6 +178,30 @@ config:
   trustProxy: true
   logRequests: true
 
-  # The explanatory page at /. false answers NOT_FOUND there, for a deployment
-  # that would rather not say what it is.
+  # The page at /. false answers NOT_FOUND there, for a deployment that would
+  # rather not say what it is -- including when indexMarkdown holds one.
   indexPage: true
+
+  # Your own page at /, in Markdown, instead of the one this server ships with.
+  # It goes into a ConfigMap, is mounted at /etc/pr-lens/index.md, and is re-read
+  # when it changes -- so `kubectl edit configmap` is the whole deployment, with
+  # no rollout. Raw HTML is allowed for what Markdown cannot say; nothing that
+  # executes is, so a <script> in here is dropped and could not run if it were
+  # not.
+  #
+  # {{origin}}, {{store}}, {{canvases}}, {{version}} and {{diagrams}} are filled
+  # in, since whoever writes this file cannot know them.
+  #
+  #   indexMarkdown: |
+  #     # Platform canvases
+  #
+  #     Diagrams for the payments group. Ask in #platform-eng.
+  #
+  #     ```sh
+  #     export PR_LENS_API_URL={{origin}}
+  #     ```
+  #
+  # For a ConfigMap this chart does not own, leave this empty and mount it with
+  # extraVolumes and extraVolumeMounts, then point INDEX_MARKDOWN_FILE at the
+  # file through extraEnv.
+  indexMarkdown: ""

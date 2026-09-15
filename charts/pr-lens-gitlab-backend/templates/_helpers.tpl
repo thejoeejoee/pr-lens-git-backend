@@ -16,6 +16,19 @@
 {{- end -}}
 {{- end -}}
 
+{{/*
+A name for one of the release's own resources, as `<fullname>-<suffix>`.
+
+fullname is already truncated to the 63 characters a Kubernetes name may have,
+so appending to it would take the result past what the API server accepts. The
+room the suffix needs comes off the base instead -- truncating afterwards would
+be worse than failing, since two suffixes would come back as the same name.
+*/}}
+{{- define "pr-lens-gitlab-backend.suffixed" -}}
+{{- $room := int (sub 62 (len .suffix)) -}}
+{{- printf "%s-%s" (include "pr-lens-gitlab-backend.fullname" .root | trunc $room | trimSuffix "-") .suffix -}}
+{{- end -}}
+
 {{- define "pr-lens-gitlab-backend.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
@@ -88,6 +101,10 @@ first entry onto the line above.
   value: {{ .Values.config.logRequests | quote }}
 - name: INDEX_PAGE
   value: {{ .Values.config.indexPage | quote }}
+{{- if .Values.config.indexMarkdown }}
+- name: INDEX_MARKDOWN_FILE
+  value: /etc/pr-lens/index.md
+{{- end }}
 {{- with .Values.extraEnv }}
 {{- toYaml . | nindent 0 }}
 {{- end }}

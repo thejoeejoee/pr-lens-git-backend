@@ -11,11 +11,20 @@ import { createApp } from "./server.ts";
  */
 const main = async (): Promise<void> => {
   const config = loadConfig();
-  const { server, service } = createApp(config);
+  const { server, service, index } = createApp(config);
 
   await service.ping().catch((error: unknown) => {
     throw new Error(
       `the ${config.store} store did not answer: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  });
+
+  // Same reasoning one file down: a page that was meant to be replaced and is
+  // not there is a mistake worth hearing about at startup, not on the first
+  // visit. Once it has been read, a later disappearance is survivable.
+  await index?.warm().catch((error: unknown) => {
+    throw new Error(
+      `INDEX_MARKDOWN_FILE ${config.indexMarkdownFile} could not be read: ${error instanceof Error ? error.message : String(error)}`,
     );
   });
 

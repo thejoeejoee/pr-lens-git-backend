@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "pr-lens-gitlab-backend.fullname" . }}-cache
+  name: {{ include "pr-lens-gitlab-backend.suffixed" (dict "root" . "suffix" "cache") }}
   labels: {{- include "pr-lens-gitlab-backend.labels" . | nindent 4 }}
 data:
   # A file rather than a heredoc in this template, so that it can be read on its

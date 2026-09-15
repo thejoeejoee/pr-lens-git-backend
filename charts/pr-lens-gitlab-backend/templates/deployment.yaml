@@ -77,6 +77,11 @@ spec:
             # The only writable path: the root filesystem is read-only.
             - name: tmp
               mountPath: /tmp
+            {{- if .Values.config.indexMarkdown }}
+            - name: index
+              mountPath: /etc/pr-lens
+              readOnly: true
+            {{- end }}
             {{- with .Values.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -132,10 +137,15 @@ spec:
         - name: tmp
           emptyDir:
             sizeLimit: 64Mi
+        {{- if .Values.config.indexMarkdown }}
+        - name: index
+          configMap:
+            name: {{ include "pr-lens-gitlab-backend.suffixed" (dict "root" . "suffix" "index") }}
+        {{- end }}
         {{- if .Values.cache.enabled }}
         - name: cache-config
           configMap:
-            name: {{ include "pr-lens-gitlab-backend.fullname" . }}-cache
+            name: {{ include "pr-lens-gitlab-backend.suffixed" (dict "root" . "suffix" "cache") }}
         - name: cache-workdir
           # Memory-backed because varnishd mmaps its shared log here and wants it
           # fast -- which also means this counts against the memory limit.

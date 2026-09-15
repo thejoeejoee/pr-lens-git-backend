@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
 import { CanvasService } from "./canvas.ts";
@@ -11,7 +12,8 @@ import {
   sendJson,
   sendText,
 } from "./http.ts";
-import { canvasPage, heroSvg, indexPage } from "./page.ts";
+import { customIndex, type CustomIndex } from "./markdown.ts";
+import { canvasPage, heroSvg, indexPage, markdownPage, pageCsp } from "./page.ts";
 import { DrawingCache } from "./render/cache.ts";
 import { bearerToken } from "./secrets.ts";
 import { CachedStore } from "./store/cached.ts";
@@ -32,7 +34,12 @@ const ROTATE = /^\/api\/canvas\/([^/]+)\/rotate$/;
 const PAGE = /^\/c\/([^/]+?)(\.svg)?$/;
 const IMAGE = /^\/images\/([^/]+)\/([^/]+\.svg)$/;
 
-export type App = { server: Server; service: CanvasService };
+export type App = {
+  server: Server;
+  service: CanvasService;
+  /** The operator's own page at `/`, when they mounted one. */
+  index: CustomIndex | undefined;
+};
 
 export const createApp = (config: Config): App => {
   const backing =
@@ -46,16 +53,21 @@ export const createApp = (config: Config): App => {
   const drawings = new DrawingCache(config.renderCacheBytes, config.draw);
   const service = new CanvasService(config, store, drawings);
 
+  const index =
+    config.indexMarkdownFile === undefined
+      ? undefined
+      : customIndex(config.indexMarkdownFile);
+
   const server = createServer((req, res) => {
     const started = Date.now();
-    void route(req, res, config, service)
+    void route(req, res, config, service, index)
       .catch((error: unknown) => refuse(res, error))
       .finally(() => {
         if (config.logRequests) log(req, res, started);
       });
   });
 
-  return { server, service };
+  return { server, service, index };
 };
 
 const route = async (
@@ -63,6 +75,7 @@ const route = async (
   res: ServerResponse,
   config: Config,
   service: CanvasService,
+  index: CustomIndex | undefined,
 ): Promise<void> => {
   const method = req.method ?? "GET";
   // Only the path matters; a query string is never part of a route here.
@@ -71,20 +84,31 @@ const route = async (
   const origin = originOf(req, config);
 
   // Somebody pasted the host into a browser. Tell them what this is, and mostly
-  // how to point a working setup at it rather than at prlens.dev. Not cached: the
-  // canvas count on it would go stale, and it is one small page.
+  // how to point a working setup at it rather than at prlens.dev -- unless the
+  // operator mounted a page of their own, which then replaces all of it. Not
+  // cached: the canvas count on it would go stale, and it is one small page.
   if (path === "/" && (method === "GET" || method === "HEAD")) {
     if (!config.indexPage) throw notFound();
-    sendText(
-      res,
-      200,
-      "text/html; charset=utf-8",
-      indexPage(origin, {
-        store: config.store,
-        draws: config.draw,
-        count: await service.count(),
-      }),
-    );
+    const facts = {
+      store: config.store,
+      draws: config.draw,
+      count: await service.count(),
+    };
+    const nonce = randomBytes(16).toString("base64");
+    const html =
+      index === undefined
+        ? indexPage(origin, facts, nonce)
+        : await index
+            .page(origin, facts)
+            .then(({ title, body }) => markdownPage(title, body, nonce));
+    sendText(res, 200, "text/html; charset=utf-8", html, {
+      // A page somebody else wrote may name pictures anywhere; a page this
+      // server wrote has no business doing so.
+      "content-security-policy": pageCsp(
+        nonce,
+        index === undefined ? "self" : "anywhere",
+      ),
+    });
     return;
   }
 
@@ -189,7 +213,14 @@ const route = async (
       return;
     }
 
-    sendText(res, 200, "text/html; charset=utf-8", canvasPage(origin, held));
+    const nonce = randomBytes(16).toString("base64");
+    sendText(
+      res,
+      200,
+      "text/html; charset=utf-8",
+      canvasPage(origin, held, nonce),
+      { "content-security-policy": pageCsp(nonce, "self") },
+    );
     return;
   }
 

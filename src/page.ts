@@ -8,8 +8,11 @@ import { VERSION } from "./version.ts";
  * The contract says nothing about any of them. It only asks that the canvas page
  * sit at `/c/{id}`, so that a link pasted into `pr-lens canvas pull` is
  * recognised and its origin taken as the API. Everything below that is this
- * server's own idea of what to show, and deliberately a small one — no scripts,
- * no fonts, no requests off this origin for anything that renders.
+ * server's own idea of what to show, and deliberately a small one — no fonts, no
+ * requests off this origin for anything these pages render, and the one script
+ * inline and doing one thing: remembering which theme the reader picked. A page
+ * an operator mounted is their own on that last point: it may name pictures
+ * wherever it likes, which is why it is served under a policy of its own.
  *
  * The write token never reaches here. It travels in the URL fragment, which the
  * browser sends to no server, so nothing on these pages can leak it.
@@ -28,12 +31,95 @@ const escape = (text: string): string =>
       })[character] ?? character,
   );
 
+/** Where the reader's choice is kept, and the three things it may say. */
+const THEME_KEY = "pr-lens-theme";
+
+/**
+ * The switcher, top right of every page. A radio group rather than three
+ * buttons, because that is what it is: one of three, always exactly one.
+ *
+ * "Auto" is the absence of a choice, not a fourth colour — it hands the page
+ * back to `prefers-color-scheme`, which is where it started.
+ *
+ * A radio group is one tab stop with arrow keys inside it, so the checked button
+ * carries the only `tabindex="0"` and the script moves it along with the choice.
+ */
+const THEMES = `<div class="themes" role="radiogroup" aria-label="Colour theme">
+  <button type="button" role="radio" aria-checked="false" tabindex="-1" data-theme-choice="light">Light</button>
+  <button type="button" role="radio" aria-checked="false" tabindex="-1" data-theme-choice="dark">Dark</button>
+  <button type="button" role="radio" aria-checked="true" tabindex="0" data-theme-choice="auto">Auto</button>
+</div>`;
+
+/**
+ * Inline in `<head>`, so the attribute is on `<html>` before the first paint and
+ * a reader who chose dark never sees a white page flash past.
+ *
+ * `localStorage` is read inside a `try`: a browser set to refuse storage throws
+ * on the read itself, and the page is meant to work there too, just forgetfully.
+ */
+const THEME_BOOT = `(function(){try{
+var t=localStorage.getItem(${JSON.stringify(THEME_KEY)});
+if(t==="light"||t==="dark")document.documentElement.dataset.theme=t;
+}catch(e){}
+document.documentElement.dataset.js="";})();`;
+
+/**
+ * At the end of `<body>`, where the control and the pictures exist.
+ *
+ * The pictures are the part a stylesheet cannot reach: a `<source media>` is
+ * matched against the browser's own `prefers-color-scheme`, which a chosen theme
+ * does not change. So the choice is written into the media query itself —
+ * `all` to force the dark render, `not all` to rule it out, and the original
+ * query back again for auto. Rewriting `media` makes the browser re-pick the
+ * source, so one render is fetched, not both.
+ *
+ * Only the sources this server wrote, which is what `data-theme-dark` marks. A
+ * mounted index page may hold pictures of the operator's own, with art-direction
+ * queries that mean something else entirely, and rewriting those would be this
+ * script editing somebody else's page.
+ */
+const THEME_WIRING = `(function(){
+var root=document.documentElement;
+var key=${JSON.stringify(THEME_KEY)};
+var buttons=document.querySelectorAll("[data-theme-choice]");
+function apply(choice){
+  if(choice==="light"||choice==="dark")root.dataset.theme=choice;else delete root.dataset.theme;
+  var media=choice==="dark"?"all":choice==="light"?"not all":"(prefers-color-scheme: dark)";
+  var sources=document.querySelectorAll("source[data-theme-dark]");
+  for(var i=0;i<sources.length;i++)sources[i].media=media;
+  for(var j=0;j<buttons.length;j++){
+    var on=buttons[j].dataset.themeChoice===choice;
+    buttons[j].setAttribute("aria-checked",String(on));
+    buttons[j].tabIndex=on?0:-1;
+  }
+}
+var saved;try{saved=localStorage.getItem(key);}catch(e){}
+var current=saved==="light"||saved==="dark"?saved:"auto";
+apply(current);
+for(var k=0;k<buttons.length;k++)buttons[k].addEventListener("click",function(){
+  current=this.dataset.themeChoice;
+  apply(current);
+  try{current==="auto"?localStorage.removeItem(key):localStorage.setItem(key,current);}catch(e){}
+});
+var group=document.querySelector(".themes");
+if(group)group.addEventListener("keydown",function(event){
+  var step=event.key==="ArrowRight"||event.key==="ArrowDown"?1:
+    event.key==="ArrowLeft"||event.key==="ArrowUp"?-1:0;
+  var at=Array.prototype.indexOf.call(buttons,document.activeElement);
+  if(step===0||at<0)return;
+  event.preventDefault();
+  var next=buttons[(at+step+buttons.length)%buttons.length];
+  next.focus();
+  next.click();
+});
+})();`;
+
 /**
  * One stylesheet, inline, for both pages. Inline because a second request for a
  * stylesheet is a second thing to cache, invalidate and get wrong, and this is
  * two kilobytes.
  */
-const shell = (title: string, body: string): string => `<!doctype html>
+const shell = (title: string, body: string, nonce: string): string => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -42,6 +128,11 @@ const shell = (title: string, body: string): string => `<!doctype html>
 <meta name="referrer" content="no-referrer">
 <title>${escape(title)}</title>
 <style>
+/*
+ * Light is the plain reading of :root; dark arrives twice, once for the reader
+ * who never touched the switcher and once for the one who chose it. Neither
+ * colour is only ever defined inside a query, so a token always has a value.
+ */
 :root {
   color-scheme: light dark;
   --ink: #1b1b1f;
@@ -50,10 +141,15 @@ const shell = (title: string, body: string): string => `<!doctype html>
   --card: #ffffff;
   --edge: #e4e4ea;
   --accent: #6d4aff;
+  /* Text on the accent, which is dark once the accent itself is a pale one. */
+  --on-accent: #ffffff;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --ink: #ececf1; --dim: #9a9aa5; --page: #14141a; --card: #1c1c24; --edge: #2c2c37; --accent: #a894ff; }
+  :root:not([data-theme="light"]) { --ink: #ececf1; --dim: #9a9aa5; --page: #14141a; --card: #1c1c24; --edge: #2c2c37; --accent: #a894ff; --on-accent: #14141a; }
 }
+:root[data-theme="dark"] { --ink: #ececf1; --dim: #9a9aa5; --page: #14141a; --card: #1c1c24; --edge: #2c2c37; --accent: #a894ff; --on-accent: #14141a; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 * { box-sizing: border-box; }
 body {
   margin: 0;
@@ -96,13 +192,99 @@ dt { color: var(--dim); }
 dd { margin: 0; font-variant-numeric: tabular-nums; }
 footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--edge); color: var(--dim); font-size: .85rem; }
 .warn { border-left: 2px solid var(--accent); padding-left: .9rem; color: var(--dim); }
+
+/*
+ * Markdown brings elements the pages written by hand never use. h3 is a section
+ * label above, which is wrong for a heading somebody wrote as ###, so inside
+ * prose the headings are plain headings again.
+ */
+.prose h2 { font-size: 1.3rem; margin: 2.25rem 0 .6rem; letter-spacing: -.01em; }
+.prose h3 { font-size: 1.05rem; text-transform: none; letter-spacing: -.005em; color: var(--ink); margin: 1.75rem 0 .5rem; }
+.prose h4, .prose h5, .prose h6 { font-size: .95rem; margin: 1.5rem 0 .4rem; }
+.prose p, .prose ul, .prose ol { margin: 0 0 1rem; }
+.prose ol { padding-left: 1.1rem; }
+.prose blockquote {
+  margin: 0 0 1rem; border-left: 2px solid var(--accent);
+  padding-left: .9rem; color: var(--dim);
+}
+.prose hr { border: 0; border-top: 1px solid var(--edge); margin: 2rem 0; }
+.prose table { border-collapse: collapse; width: 100%; margin: 0 0 1rem; font-size: .9rem; display: block; overflow-x: auto; }
+.prose th, .prose td { border: 1px solid var(--edge); padding: .4rem .6rem; text-align: left; }
+.prose th { color: var(--dim); font-weight: 600; }
+.prose img { margin: 0 0 1rem; }
+.prose :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
+
+/*
+ * The switcher. Hidden until the script says it is alive, because a control that
+ * cannot remember anything is worse than no control at all.
+ */
+.themes { display: none; }
+:root[data-js] .themes {
+  display: flex;
+  position: fixed;
+  top: .9rem;
+  right: .9rem;
+  z-index: 1;
+  gap: .125rem;
+  padding: .1875rem;
+  background: var(--card);
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+}
+.themes button {
+  appearance: none;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--dim);
+  padding: .3rem .7rem;
+  border-radius: 999px;
+  font: inherit;
+  font-size: .8rem;
+  line-height: 1.2;
+}
+.themes button:hover { color: var(--ink); }
+.themes button[aria-checked="true"] { background: var(--accent); color: var(--on-accent); }
+.themes button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 30rem) {
+  :root[data-js] .themes { top: .5rem; right: .5rem; }
+  .themes button { padding: .3rem .55rem; font-size: .75rem; }
+}
 </style>
+<script nonce="${nonce}">${THEME_BOOT}</script>
 </head>
 <body>
+${THEMES}
 ${body}
+<script nonce="${nonce}">${THEME_WIRING}</script>
 </body>
 </html>
 `;
+
+/**
+ * What the page is allowed to do, which is: show itself.
+ *
+ * The scripts this server writes are named by a nonce, and nothing else may run
+ * — not an inline `<script>` that reached the page some other way, not an
+ * `onclick=`, not a `javascript:` link. That is the guarantee behind letting an
+ * operator write raw HTML into their own index page: their HTML is theirs, but
+ * it is not code.
+ *
+ * `images` is the one thing that differs between the two kinds of page. A page
+ * this server wrote shows pictures from this server; a page an operator wrote
+ * may well point at their intranet's logo, and breaking that to no purpose would
+ * be a policy about nothing. Styles stay `unsafe-inline`, since that is what an
+ * inline `style=` attribute needs and a stylesheet cannot execute anything.
+ */
+export const pageCsp = (nonce: string, images: "self" | "anywhere"): string =>
+  [
+    "default-src 'none'",
+    images === "self" ? "img-src 'self'" : "img-src * data:",
+    "style-src 'unsafe-inline'",
+    `script-src 'nonce-${nonce}'`,
+    "base-uri 'none'",
+    "form-action 'none'",
+  ].join("; ");
 
 /** The tile the embed shows, which the contract fixes as the first one. */
 export const heroOf = (canvas: Canvas) =>
@@ -125,8 +307,8 @@ export const heroSvg = (
 
 /**
  * A `<picture>` per tile: the dark render behind a media query, the light one as
- * the fallback. Which means the page follows the reader's theme with no
- * stylesheet trickery and no script at all.
+ * the fallback. Which means the page follows the reader's system theme on its
+ * own, and the switcher only has to edit that one media query to override it.
  */
 const tileFigure = (
   origin: string,
@@ -145,13 +327,17 @@ const tileFigure = (
     <p class="meta">${escape(tile.lens)}${trail === "" ? "" : ` &middot; ${escape(trail)}`}</p>
   </figcaption>
   <picture>
-    ${dark === undefined ? "" : `<source srcset="${escape(imageUrl(origin, id, dark))}" media="(prefers-color-scheme: dark)">`}
+    ${dark === undefined ? "" : `<source srcset="${escape(imageUrl(origin, id, dark))}" media="(prefers-color-scheme: dark)" data-theme-dark>`}
     <img src="${escape(imageUrl(origin, id, light))}" width="${tile.width}" height="${tile.height}" alt="${escape(tile.title)}" loading="lazy">
   </picture>
 </figure>`;
 };
 
-export const canvasPage = (origin: string, canvas: Canvas): string => {
+export const canvasPage = (
+  origin: string,
+  canvas: Canvas,
+  nonce: string,
+): string => {
   const title = canvas.document?.title ?? canvas.id;
   const summary = canvas.document?.summary;
   const tiles = canvas.drawing.tiles;
@@ -173,6 +359,7 @@ ${summary === undefined ? "" : `<p class="lede">${escape(summary)}</p>`}
 <p class="rev">Revision ${canvas.rev} &middot; ${tiles.length} diagram${tiles.length === 1 ? "" : "s"}</p>
 ${body}
 </main>`,
+    nonce,
   );
 };
 
@@ -198,7 +385,11 @@ export type Facts = {
  * No canvas id appears, since an id is a read capability. Everything else about
  * the server is fair game.
  */
-export const indexPage = (origin: string, facts: Facts): string =>
+export const indexPage = (
+  origin: string,
+  facts: Facts,
+  nonce: string,
+): string =>
   shell(
     "PR Lens canvas server",
     `<main class="narrow">
@@ -271,7 +462,21 @@ server &mdash; so share view links freely and edit links carefully.</p>
 &middot; <a href="/healthz">healthz</a>
 </footer>
 </main>`,
+    nonce,
   );
+
+/**
+ * The operator's own page, in the same shell as every other: their Markdown,
+ * rendered elsewhere, dropped where the default body would have gone.
+ *
+ * Which means their page gets the stylesheet, the theme switcher and the reader's
+ * remembered choice for free, and they write only the words.
+ */
+export const markdownPage = (
+  title: string,
+  body: string,
+  nonce: string,
+): string => shell(title, `<main class="narrow prose">\n${body}</main>`, nonce);
 
 const countText = (count: Facts["count"]): string => {
   if (count === undefined) return "&mdash;";

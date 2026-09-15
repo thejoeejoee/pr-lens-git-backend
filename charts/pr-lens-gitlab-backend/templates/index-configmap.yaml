@@ -1,0 +1,14 @@
+{{- if .Values.config.indexMarkdown }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pr-lens-gitlab-backend.suffixed" (dict "root" . "suffix" "index") }}
+  labels: {{- include "pr-lens-gitlab-backend.labels" . | nindent 4 }}
+data:
+  # The page at /, as the operator wrote it. No checksum annotation on the
+  # Deployment for this one on purpose: the server re-reads the file when it
+  # changes, so editing this ConfigMap is the whole deployment and restarting
+  # the pods to pick it up would be a worse story, not a better one.
+  index.md: |
+{{ .Values.config.indexMarkdown | indent 4 }}
+{{- end }}
