@@ -88,6 +88,10 @@ first entry onto the line above.
   value: {{ .Values.config.logRequests | quote }}
 - name: INDEX_PAGE
   value: {{ .Values.config.indexPage | quote }}
+{{- if .Values.config.indexMarkdown }}
+- name: INDEX_MARKDOWN_FILE
+  value: /etc/pr-lens/index.md
+{{- end }}
 {{- with .Values.extraEnv }}
 {{- toYaml . | nindent 0 }}
 {{- end }}

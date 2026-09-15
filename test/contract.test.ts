@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtemp, rm, utimes, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { payloadGraph } from "@coldtea/pr-lens-schema/examples";
@@ -599,5 +602,93 @@ describe("the index page", () => {
     } finally {
       await quiet.close();
     }
+  });
+});
+
+/**
+ * The page at `/`, replaced by one the operator wrote.
+ *
+ * The file is the interface, because in Kubernetes a page of prose is a
+ * ConfigMap and a ConfigMap is a mounted file. So these tests write files and
+ * edit them under a running server, which is what `kubectl edit configmap` does
+ * to a pod.
+ */
+describe("a mounted index page", () => {
+  let dir: string;
+  let file: string;
+  let harness: Harness;
+
+  const write = async (markdown: string): Promise<void> => {
+    await writeFile(file, markdown, "utf8");
+    // mtime is the whole cache key, and two writes can land in the same
+    // millisecond on a filesystem with a coarse clock.
+    const ahead = new Date(Date.now() + 10_000);
+    await utimes(file, ahead, ahead);
+  };
+
+  before(async () => {
+    dir = await mkdtemp(join(tmpdir(), "pr-lens-index-"));
+    file = join(dir, "index.md");
+    await write("# Platform canvases\n\nAsk in `#platform-eng`.\n");
+    harness = await start({ LOG_REQUESTS: "false", INDEX_MARKDOWN_FILE: file });
+  });
+  after(async () => {
+    await harness.close();
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("serves the operator's page instead of this server's", async () => {
+    const response = await fetch(harness.url + "/");
+    const html = await response.text();
+
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type") ?? "", /text\/html/);
+    assert.match(html, /<h1>Platform canvases<\/h1>/);
+    assert.match(html, /<code>#platform-eng<\/code>/);
+    // The heading names the page, since Markdown cannot say <title> itself.
+    assert.match(html, /<title>Platform canvases<\/title>/);
+    // And the default page is gone, not merely pushed down.
+    assert.doesNotMatch(html, /instead of prlens\.dev/);
+  });
+
+  it("keeps the shell, so the theme switcher still works there", async () => {
+    const html = await (await fetch(harness.url + "/")).text();
+    assert.match(html, /data-theme-choice="auto"/);
+    assert.match(html, /"pr-lens-theme"/);
+  });
+
+  it("fills in what the operator cannot know when writing the file", async () => {
+    await write(
+      "# Ours\n\n```sh\nexport PR_LENS_API_URL={{origin}}\n```\n\nstore {{store}}, {{canvases}}, v{{version}}.\n",
+    );
+    const html = await (await fetch(harness.url + "/")).text();
+
+    assert.match(html, new RegExp(`export PR_LENS_API_URL=${harness.url}`));
+    assert.match(html, /store memory, none yet, v\d+\.\d+\.\d+\./);
+  });
+
+  it("follows the file when it changes, with no restart", async () => {
+    await write("# Edited\n\nsecond thoughts.\n");
+    const html = await (await fetch(harness.url + "/")).text();
+
+    assert.match(html, /<h1>Edited<\/h1>/);
+    assert.match(html, /second thoughts/);
+  });
+
+  it("serves the last copy it read when the file goes missing", async () => {
+    await write("# Still here\n");
+    assert.match(await (await fetch(harness.url + "/")).text(), /Still here/);
+
+    await rm(file);
+    const response = await fetch(harness.url + "/");
+
+    assert.equal(response.status, 200, "an index page is not worth a 500");
+    assert.match(await response.text(), /Still here/);
+    await write("# Still here\n");
+  });
+
+  it("refuses to start when the file was never there", async () => {
+    const { customIndex } = await import("../src/markdown.ts");
+    await assert.rejects(customIndex(join(dir, "absent.md")).warm());
   });
 });

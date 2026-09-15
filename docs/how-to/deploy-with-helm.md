@@ -60,6 +60,29 @@ are per-pod rather than shared:
 Neither can corrupt anything — see
 [Why GitLab works](../explanation/why-gitlab.md) for why a stale read is safe.
 
+## Say what this host is, in your own words
+
+The page at `/` explains PR Lens to a stranger. For a host your own team uses,
+what belongs there is usually which project is behind it and who to ask. One
+value replaces the whole page:
+
+````yaml
+config:
+  indexMarkdown: |
+    # Platform canvases
+
+    Diagrams for the payments group. Ask in #platform-eng.
+
+    ```sh
+    export PR_LENS_API_URL={{origin}}
+    ```
+````
+
+It becomes a ConfigMap mounted at `/etc/pr-lens/index.md`, and the server re-reads
+it when it changes — so `kubectl edit configmap <release>-index` is the whole
+deployment, with no rollout. `{{origin}}` and four other placeholders are filled
+in; [Configuration](../reference/configuration.md#your-own-page-at-) lists them.
+
 ## Probes
 
 `/healthz` is liveness and asks only whether the process is up. `/readyz` is

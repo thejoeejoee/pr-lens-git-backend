@@ -49,7 +49,8 @@
   },
   "dependencies": {
     "@coldtea/pr-lens-renderer": "^0.2.5",
-    "@coldtea/pr-lens-schema": "^0.3.0"
+    "@coldtea/pr-lens-schema": "^0.3.0",
+    "marked": "^18.0.13"
   },
   "devDependencies": {
     "@types/node": "^26.5.1",

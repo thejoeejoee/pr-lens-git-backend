@@ -49,6 +49,11 @@ export type Config = {
   logRequests: boolean;
   /** Serve the explanatory page at `/`. Off answers NOT_FOUND there instead. */
   indexPage: boolean;
+  /**
+   * A Markdown file to serve at `/` in place of the explanatory page. Undefined
+   * is the page this server ships with.
+   */
+  indexMarkdownFile: string | undefined;
 };
 
 const str = (name: string, fallback?: string): string => {
@@ -56,6 +61,12 @@ const str = (name: string, fallback?: string): string => {
   if (value !== undefined && value !== "") return value;
   if (fallback !== undefined) return fallback;
   throw new Error(`${name} is required`);
+};
+
+/** A setting with no default and no obligation: unset and empty are the same. */
+const optional = (name: string): string | undefined => {
+  const value = process.env[name]?.trim();
+  return value === undefined || value === "" ? undefined : value;
 };
 
 const int = (name: string, fallback: number): number => {
@@ -147,5 +158,6 @@ export const loadConfig = (): Config => {
     trustProxy: bool("TRUST_PROXY", false),
     logRequests: bool("LOG_REQUESTS", true),
     indexPage: bool("INDEX_PAGE", true),
+    indexMarkdownFile: optional("INDEX_MARKDOWN_FILE"),
   };
 };

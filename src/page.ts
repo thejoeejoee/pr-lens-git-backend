@@ -187,6 +187,27 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--edg
 .warn { border-left: 2px solid var(--accent); padding-left: .9rem; color: var(--dim); }
 
 /*
+ * Markdown brings elements the pages written by hand never use. h3 is a section
+ * label above, which is wrong for a heading somebody wrote as ###, so inside
+ * prose the headings are plain headings again.
+ */
+.prose h2 { font-size: 1.3rem; margin: 2.25rem 0 .6rem; letter-spacing: -.01em; }
+.prose h3 { font-size: 1.05rem; text-transform: none; letter-spacing: -.005em; color: var(--ink); margin: 1.75rem 0 .5rem; }
+.prose h4, .prose h5, .prose h6 { font-size: .95rem; margin: 1.5rem 0 .4rem; }
+.prose p, .prose ul, .prose ol { margin: 0 0 1rem; }
+.prose ol { padding-left: 1.1rem; }
+.prose blockquote {
+  margin: 0 0 1rem; border-left: 2px solid var(--accent);
+  padding-left: .9rem; color: var(--dim);
+}
+.prose hr { border: 0; border-top: 1px solid var(--edge); margin: 2rem 0; }
+.prose table { border-collapse: collapse; width: 100%; margin: 0 0 1rem; font-size: .9rem; display: block; overflow-x: auto; }
+.prose th, .prose td { border: 1px solid var(--edge); padding: .4rem .6rem; text-align: left; }
+.prose th { color: var(--dim); font-weight: 600; }
+.prose img { margin: 0 0 1rem; }
+.prose :is(h1, h2, h3, h4, h5, h6):first-child { margin-top: 0; }
+
+/*
  * The switcher. Hidden until the script says it is alive, because a control that
  * cannot remember anything is worse than no control at all.
  */
@@ -401,6 +422,16 @@ server &mdash; so share view links freely and edit links carefully.</p>
 </footer>
 </main>`,
   );
+
+/**
+ * The operator's own page, in the same shell as every other: their Markdown,
+ * rendered elsewhere, dropped where the default body would have gone.
+ *
+ * Which means their page gets the stylesheet, the theme switcher and the reader's
+ * remembered choice for free, and they write only the words.
+ */
+export const markdownPage = (title: string, body: string): string =>
+  shell(title, `<main class="narrow prose">\n${body}</main>`);
 
 const countText = (count: Facts["count"]): string => {
   if (count === undefined) return "&mdash;";

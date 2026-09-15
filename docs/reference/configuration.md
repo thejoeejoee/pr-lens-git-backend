@@ -13,6 +13,7 @@ with no safe default is a startup failure, not a 500 on the first request.
 | `TRUST_PROXY` | `false` | Believe `x-forwarded-for` and `x-forwarded-proto`. Only behind a proxy you own. |
 | `LOG_REQUESTS` | `true` | One line per request, with canvas ids redacted. |
 | `INDEX_PAGE` | `true` | Serve the explanatory page at `/`. `false` answers `NOT_FOUND` there instead. |
+| `INDEX_MARKDOWN_FILE` | — | A Markdown file to serve at `/` in place of that page. See [Your own page at `/`](#your-own-page-at-). |
 
 ## Store
 
@@ -43,6 +44,50 @@ with no safe default is a startup failure, not a 500 on the first request.
 | `NODE_EXTRA_CA_CERTS` | — | Node's own: a CA bundle for a GitLab behind a private CA. |
 
 `.env.example` carries the same list with the reasoning attached.
+
+## Your own page at `/`
+
+`INDEX_MARKDOWN_FILE` points at a Markdown file, and that file becomes the page —
+useful when the readers are a team rather than strangers, and what they need is
+which project is behind this and who to ask, not an explanation of what PR Lens
+is.
+
+The file is read at startup, so a path that is not there is a refusal to start
+rather than a broken page. After that it is re-read whenever it changes on disk,
+which is what makes a ConfigMap the natural home for it: edit the ConfigMap and
+the page follows, with no rollout. If the file later disappears, the last copy
+that was read is served on.
+
+Five placeholders are filled in, since whoever writes the file cannot know them:
+
+| Placeholder | Becomes |
+| --- | --- |
+| `{{origin}}` | This server's origin, the same one the API answers name. |
+| `{{store}}` | `gitlab` or `memory`. |
+| `{{canvases}}` | How many canvases are held. |
+| `{{version}}` | This server's version. |
+| `{{diagrams}}` | `drawn on push`, or `not drawn` when `DRAW=false`. |
+
+The page keeps this server's stylesheet, its theme switcher and the reader's
+remembered light/dark choice; you write only the words. GitHub-flavoured Markdown
+is what the file may hold — tables, fenced code, task lists — and raw HTML, which
+is passed through untouched. That last part is deliberate: whoever can mount this
+file can already set `GITLAB_TOKEN`, so there is nothing for an escaping rule to
+protect. It does mean a `<script>` in it runs on this origin.
+
+In the chart this is one value:
+
+````yaml
+config:
+  indexMarkdown: |
+    # Platform canvases
+
+    Diagrams for the payments group. Ask in #platform-eng.
+
+    ```sh
+    export PR_LENS_API_URL={{origin}}
+    ```
+````
 
 ## Chart values
 
