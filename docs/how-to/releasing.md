@@ -25,8 +25,33 @@ Without it the job fails on a missing environment, so this step is not optional.
 
 ### 2. npm as a trusted publisher
 
-On the package's **Settings → Trusted Publisher**, with the package already
-published once:
+Trusted publishing can only publish a package that **already exists**, and the
+trust is configured on the package. The first release under a new name therefore
+loses a chicken-and-egg race: npm answers
+
+```
+npm error 404 Not Found - PUT https://registry.npmjs.org/<name>
+```
+
+and the release fails with the tag already cut and the image and chart already
+published. Renaming the package counts as a new name — the old package's trust
+does not carry over, and this is exactly what happened to `pr-lens-git-backend`
+at 0.6.0.
+
+So the first publish of a name is done by hand, once, from the tag:
+
+```bash
+git checkout v0.6.0
+npm ci
+npm publish --access public
+```
+
+That one version has no provenance attestation: provenance is signed with the CI
+OIDC token, and there is none on a laptop. Every release after it has one. Do not
+re-run the failed `npm` job afterwards — that version is published now, and npm
+refuses to publish over it.
+
+Then, on the package's **Settings → Trusted Publisher**:
 
 | Field | Value |
 | --- | --- |
@@ -41,7 +66,9 @@ npm then trades the workflow's OIDC token for a short-lived publish token. The
 trust cannot be edited afterwards, only deleted and recreated, and the three
 names above have to keep matching the workflow: rename the job's `environment`,
 move the file, or rename the repository, and publishing stops until the trust is
-recreated.
+recreated. Renaming the *package* is worse than that, because there is no trust
+to repair — there is a new package that has none, and the manual first publish
+above is how it gets one.
 
 ### 3. Nothing for the image or the chart
 
