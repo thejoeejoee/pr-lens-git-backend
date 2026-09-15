@@ -3,11 +3,14 @@
 # Pinned to a minor so the Alpine underneath cannot change on a rebuild, while
 # node and alpine patch releases still arrive. Not a digest: a digest without an
 # automated updater rots, and a stale digest is worse than a floating patch.
-ARG NODE_IMAGE=node:24-alpine3.22
+#
+# Written out three times rather than held in an ARG, because Dependabot's
+# Docker parser reads literal FROM lines only and skips a variable one
+# entirely. Three lines it can bump together beat one line nobody bumps.
 
 # Built rather than run from source, so the runtime image needs no TypeScript
 # and no experimental flags.
-FROM ${NODE_IMAGE} AS build
+FROM node:24-alpine3.22 AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 # --ignore-scripts because `prepare` builds, and src is not here yet. The
@@ -20,13 +23,13 @@ RUN npm run build
 # Production dependencies on their own, so the runtime stage copies them rather
 # than installing again. Under QEMU that second install is the slowest thing in
 # a multi-platform build.
-FROM ${NODE_IMAGE} AS deps
+FROM node:24-alpine3.22 AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund && \
     npm cache clean --force
 
-FROM ${NODE_IMAGE}
+FROM node:24-alpine3.22
 ENV NODE_ENV=production
 WORKDIR /app
 
