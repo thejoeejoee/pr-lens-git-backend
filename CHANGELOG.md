@@ -4,6 +4,20 @@ Kept by [release-please](https://github.com/googleapis/release-please) from the
 conventional-commit subjects on `main`. Everything below 0.3.0 was written by
 hand, because the two releases before it predate that setup.
 
+## [0.5.0](https://github.com/thejoeejoee/pr-lens-gitlab-backend/compare/v0.4.0...v0.5.0) (2026-09-15)
+
+
+### Features
+
+* **helm:** let the ingress answer on more than one host ([7db9f9c](https://github.com/thejoeejoee/pr-lens-gitlab-backend/commit/7db9f9c8edf27ed5408b21bee4143f30e659ee23))
+* **helm:** let the ingress answer on more than one host ([14e5db8](https://github.com/thejoeejoee/pr-lens-gitlab-backend/commit/14e5db8be9f2ec8d9c23e75d258c3493c3020cd3)), closes [#14](https://github.com/thejoeejoee/pr-lens-gitlab-backend/issues/14)
+
+
+### Bug Fixes
+
+* **pages:** address the canvas page's pictures by path ([25b6ff0](https://github.com/thejoeejoee/pr-lens-gitlab-backend/commit/25b6ff0598c0578d78bcdff624e768bdfd0d8dac))
+* **pages:** address the canvas page's pictures by path ([1a602fa](https://github.com/thejoeejoee/pr-lens-gitlab-backend/commit/1a602fa4bfdc5e7d84a634949150b5b33d71d644))
+
 ## [0.4.0](https://github.com/thejoeejoee/pr-lens-gitlab-backend/compare/v0.3.1...v0.4.0) (2026-09-15)
 
 
