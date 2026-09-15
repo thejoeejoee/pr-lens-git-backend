@@ -16,14 +16,20 @@ spec:
   tls: {{- toYaml . | nindent 4 }}
   {{- end }}
   rules:
-    - host: {{ required "ingress.host is required when the ingress is enabled" .Values.ingress.host | quote }}
+    # One rule per host, all of them the same rule: an internal name and the
+    # canonical one are the same server, and a canvas link is whichever host the
+    # reader was given. Which is also why config.publicUrl matters more with two
+    # than with one -- without it, a link minted through either names that one.
+    {{- range splitList "," (include "pr-lens-gitlab-backend.ingressHosts" .) }}
+    - host: {{ . | quote }}
       http:
         paths:
-          - path: {{ .Values.ingress.path }}
-            pathType: {{ .Values.ingress.pathType }}
+          - path: {{ $.Values.ingress.path }}
+            pathType: {{ $.Values.ingress.pathType }}
             backend:
               service:
                 name: {{ $fullName }}
                 port:
-                  number: {{ .Values.service.port }}
+                  number: {{ $.Values.service.port }}
+    {{- end }}
 {{- end }}

@@ -46,6 +46,23 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{/*
+The hosts the Ingress answers on, comma-joined so that one definition can serve
+both the rules and NOTES.txt -- a template may only return a string, and
+`splitList` at the call site turns this back into a list.
+
+`hosts` is the list; `host` is what the chart has always taken and still does,
+as the single-host spelling of the same thing. Setting both is not an error: the
+list wins, because a list is the more explicit of the two.
+*/}}
+{{- define "pr-lens-gitlab-backend.ingressHosts" -}}
+{{- if .Values.ingress.hosts -}}
+{{- join "," .Values.ingress.hosts -}}
+{{- else -}}
+{{- required "ingress.host or ingress.hosts is required when the ingress is enabled" .Values.ingress.host -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 The settings, as environment. Written here rather than in a ConfigMap so that
 the whole configuration of a pod is one thing to read.
 

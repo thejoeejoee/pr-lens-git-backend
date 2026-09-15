@@ -4,7 +4,11 @@
 Point the CLI at it:
 {{- if .Values.ingress.enabled }}
 
-  export PR_LENS_API_URL={{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ .Values.ingress.host }}
+{{- if .Values.config.publicUrl }}
+  export PR_LENS_API_URL={{ .Values.config.publicUrl }}
+{{- else }}
+  export PR_LENS_API_URL={{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ first (splitList "," (include "pr-lens-gitlab-backend.ingressHosts" .)) }}
+{{- end }}
 {{- else if .Values.httpRoute.enabled }}
 
   export PR_LENS_API_URL=https://{{ first .Values.httpRoute.hostnames }}
@@ -21,6 +25,13 @@ config.publicUrl is empty, so every answer names whichever host the request
 arrived on. Behind an ingress or a gateway that is usually right; set it if
 anything rewrites the Host header, or the edit links the CLI prints will point
 at the wrong place.
+{{- if gt (len (splitList "," (include "pr-lens-gitlab-backend.ingressHosts" .))) 1 }}
+
+This release answers on more than one host, which makes that worth doing rather
+than worth thinking about: a canvas pushed through one of them comes back as a
+link to that one, so the same canvas has two addresses and which you get depends
+on which you used. Set config.publicUrl to the canonical host.
+{{- end }}
 {{- end }}
 {{ if eq .Values.config.store "memory" -}}
 config.store is "memory": every canvas is forgotten when a pod restarts. Set it
