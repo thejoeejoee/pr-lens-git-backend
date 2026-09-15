@@ -47,7 +47,10 @@ export type Config = {
   trustProxy: boolean;
   /** One line per request, with canvas ids redacted. */
   logRequests: boolean;
-  /** Serve the explanatory page at `/`. Off answers NOT_FOUND there instead. */
+  /**
+   * Serve a page at `/`. Off answers NOT_FOUND there instead — including when a
+   * page has been mounted, since off is a decision about the route.
+   */
   indexPage: boolean;
   /**
    * A Markdown file to serve at `/` in place of the explanatory page. Undefined

@@ -140,12 +140,12 @@ spec:
         {{- if .Values.config.indexMarkdown }}
         - name: index
           configMap:
-            name: {{ include "pr-lens-gitlab-backend.fullname" . }}-index
+            name: {{ include "pr-lens-gitlab-backend.suffixed" (dict "root" . "suffix" "index") }}
         {{- end }}
         {{- if .Values.cache.enabled }}
         - name: cache-config
           configMap:
-            name: {{ include "pr-lens-gitlab-backend.fullname" . }}-cache
+            name: {{ include "pr-lens-gitlab-backend.suffixed" (dict "root" . "suffix" "cache") }}
         - name: cache-workdir
           # Memory-backed because varnishd mmaps its shared log here and wants it
           # fast -- which also means this counts against the memory limit.

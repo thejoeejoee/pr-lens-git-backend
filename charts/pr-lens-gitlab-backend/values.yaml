@@ -178,8 +178,8 @@ config:
   trustProxy: true
   logRequests: true
 
-  # The explanatory page at /. false answers NOT_FOUND there, for a deployment
-  # that would rather not say what it is.
+  # The page at /. false answers NOT_FOUND there, for a deployment that would
+  # rather not say what it is -- including when indexMarkdown holds one.
   indexPage: true
 
   # Your own page at /, in Markdown, instead of the one this server ships with.

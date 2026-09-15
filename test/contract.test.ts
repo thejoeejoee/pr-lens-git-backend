@@ -453,6 +453,15 @@ describe("the pages and the pictures", () => {
     assert.match(head, /dataset\.theme/);
   });
 
+  it("touches only the pictures this server drew", async () => {
+    const html = await (await fetch(`${harness.url}/c/${id}`)).text();
+
+    // A mounted index page may hold pictures with art-direction queries of its
+    // own, and the theme script has no business rewriting those.
+    assert.match(html, /<source [^>]*data-theme-dark>/);
+    assert.match(html, /querySelectorAll\("source\[data-theme-dark\]"\)/);
+  });
+
   it("runs its own script by nonce, and nothing else at all", async () => {
     const response = await fetch(`${harness.url}/c/${id}`);
     const html = await response.text();
@@ -735,6 +744,46 @@ describe("a mounted index page", () => {
     assert.match(body, /<details><summary>and so does <b>this<\/b><\/summary>kept<\/details>/);
     assert.match(body, /<img src="x">/, "the element stays, the handler does not");
     assert.match(body, /a link/, "the link's words stay, the scheme does not");
+  });
+
+  it("cannot get out of an attribute, or in through an alt", async () => {
+    await write(
+      [
+        "# Ours",
+        "",
+        '[a](<https://a" onmouseover="alert(1)>)',
+        "",
+        "![<img src=x onerror=alert(1)>](https://pictures.example/a.png)",
+        "",
+        "![<img src=x onerror=alert(1)>](javascript:alert(1))",
+        "",
+        "[data](data:text/html,<b>hi</b>)",
+        "",
+        '<a href="data:text/html,hello">raw data</a>',
+      ].join("\n"),
+    );
+    const body = (await (await fetch(harness.url + "/")).text()).slice(0, -1);
+
+    // A quote in a URL or a title is escaped, so what looks like an attribute
+    // stays inside the one it was written in rather than becoming one.
+    assert.doesNotMatch(body, /onmouseover="/);
+    assert.match(body, /href="https:\/\/a&quot; onmouseover=&quot;alert\(1\)"/);
+    // Alt text is text, on the branch that keeps the image and the one that
+    // drops it: neither may put an element on the page.
+    assert.doesNotMatch(body, /<img src=x/);
+    assert.match(body, /alt="&lt;img src=x onerror=alert\(1\)&gt;"/);
+    // data:text/html is a document of somebody else's, under its own policy
+    // rather than this page's, so nothing navigates to one.
+    assert.doesNotMatch(body, /href="data:/);
+  });
+
+  it("titles the page from the document, not from a line that looks like one", async () => {
+    await write(
+      "```\n# Not the title\n```\n\nThe **real** title\n==================\n",
+    );
+    const html = await (await fetch(harness.url + "/")).text();
+
+    assert.match(html, /<title>The real title<\/title>/);
   });
 
   it("could not run one anyway, since the policy names only this server's", async () => {

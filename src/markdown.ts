@@ -57,15 +57,49 @@ const sanitize = (html: string): string =>
     .replace(new RegExp(`<\\/?(?:${EXECUTES})\\b[^>]*>`, "gi"), "")
     // onclick, onerror, onload and the rest of them.
     .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
-    // javascript: in anything that navigates. A data: URL stays: it is how an
-    // image gets inlined, and a data: document cannot reach this origin.
+    // javascript: anywhere, and data: in anything that navigates -- a
+    // `data:text/html` is somebody else's document under its own origin and its
+    // own policy, not this page under this page's.
     .replace(
-      /\s(href|src|xlink:href|action|formaction)\s*=\s*(?:"\s*(?:java|vb)script:[^"]*"|'\s*(?:java|vb)script:[^']*'|\s*(?:java|vb)script:[^\s>]*)/gi,
+      /\s(?:href|xlink:href|action|formaction)\s*=\s*(?:"\s*(?:(?:java|vb)script|data):[^"]*"|'\s*(?:(?:java|vb)script|data):[^']*'|\s*(?:(?:java|vb)script|data):[^\s>]*)/gi,
+      "",
+    )
+    // A src keeps its data: URL, which is how a picture gets inlined.
+    .replace(
+      /\s(?:src|srcset)\s*=\s*(?:"\s*(?:java|vb)script:[^"]*"|'\s*(?:java|vb)script:[^']*'|\s*(?:java|vb)script:[^\s>]*)/gi,
       "",
     );
 
-/** The same rule for a link Markdown wrote itself, which never passes through sanitize. */
+/**
+ * An attribute value, which the renderers below build by hand and so have to
+ * escape by hand. Marked's own renderers do this; overriding one means taking
+ * the job on, and a URL carrying a quote is otherwise a way out of the attribute
+ * and into the tag.
+ */
+const attribute = (value: string): string =>
+  value.replace(
+    /[&<>"']/g,
+    (character) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        character
+      ] ?? character,
+  );
+
+/**
+ * Schemes a link may point at, for one Markdown wrote itself — which never
+ * passes through `sanitize`.
+ *
+ * `data:` is refused here and allowed for an image, because the two are not the
+ * same risk: a `data:image/png` is a picture, while a `data:text/html` is a
+ * document of somebody else's, with its own origin and its own policy rather
+ * than this page's. Browsers have blocked navigating to one for years; that is a
+ * reason not to worry about it, not a reason to emit it.
+ */
 const safeHref = (href: string): string =>
+  /^\s*(?:(?:java|vb)script|data):/i.test(href) ? "" : href;
+
+/** The same for an image, where `data:` is how one gets inlined. */
+const imageSrc = (href: string): string =>
   /^\s*(?:java|vb)script:/i.test(href) ? "" : href;
 
 /**
@@ -76,15 +110,28 @@ const renderer = new Marked({ gfm: true }).use({
   renderer: {
     html: ({ text }: { text: string }) => sanitize(text),
     link({ href, title, tokens }) {
-      const safe = safeHref(href);
+      // The link's words are already rendered HTML; only what this puts around
+      // them needs escaping.
       const text = this.parser.parseInline(tokens);
-      if (safe === "") return text;
-      return `<a href="${safe}"${title === null || title === undefined ? "" : ` title="${title}"`}>${text}</a>`;
+      if (safeHref(href) === "") return text;
+      return `<a href="${attribute(href)}"${
+        title === null || title === undefined
+          ? ""
+          : ` title="${attribute(title)}"`
+      }>${text}</a>`;
     },
     image({ href, title, text }) {
-      const safe = safeHref(href);
-      if (safe === "") return text;
-      return `<img src="${safe}" alt="${text}"${title === null || title === undefined ? "" : ` title="${title}"`}>`;
+      // Alt text is raw, on both branches: an image whose alt is `<img
+      // onerror=...>` would otherwise put that element on the page.
+      const alt = attribute(text);
+      // An image with nowhere to point is its own description, which is what a
+      // reader with pictures turned off would have had anyway.
+      if (imageSrc(href) === "") return alt;
+      return `<img src="${attribute(href)}" alt="${alt}"${
+        title === null || title === undefined
+          ? ""
+          : ` title="${attribute(title)}"`
+      }>`;
     },
   },
 });
@@ -119,13 +166,21 @@ const countText = (count: Facts["count"]): string => {
 /**
  * The `<title>`, which Markdown has no way to state outright: the first heading
  * of the document, with its inline markup taken back off.
+ *
+ * Asked of the parsed document rather than of the text, because the text is
+ * ambiguous in both directions — a `# heading` inside a fenced code block is not
+ * a heading, and a line underlined with `====` is. The lexer already knows which
+ * is which, and a regex here would be a second, worse opinion.
  */
 const titleOf = (markdown: string): string | undefined => {
-  const heading = /^#{1,6}[ \t]+(.+?)[ \t]*#*[ \t]*$/m.exec(markdown)?.[1];
-  if (heading === undefined) return undefined;
-  const plain = heading
-    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/[*_`~]/g, "")
+  const heading = renderer
+    .lexer(markdown)
+    .find((token) => token.type === "heading");
+  if (heading === undefined || !("tokens" in heading)) return undefined;
+
+  const plain = (heading.tokens ?? [])
+    .map((token) => ("text" in token ? String(token.text) : ""))
+    .join("")
     .trim();
   return plain === "" ? undefined : plain;
 };

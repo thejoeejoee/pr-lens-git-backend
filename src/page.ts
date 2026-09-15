@@ -9,8 +9,10 @@ import { VERSION } from "./version.ts";
  * sit at `/c/{id}`, so that a link pasted into `pr-lens canvas pull` is
  * recognised and its origin taken as the API. Everything below that is this
  * server's own idea of what to show, and deliberately a small one — no fonts, no
- * requests off this origin for anything that renders, and the one script inline
- * and doing one thing: remembering which theme the reader picked.
+ * requests off this origin for anything these pages render, and the one script
+ * inline and doing one thing: remembering which theme the reader picked. A page
+ * an operator mounted is their own on that last point: it may name pictures
+ * wherever it likes, which is why it is served under a policy of its own.
  *
  * The write token never reaches here. It travels in the URL fragment, which the
  * browser sends to no server, so nothing on these pages can leak it.
@@ -70,6 +72,11 @@ document.documentElement.dataset.js="";})();`;
  * `all` to force the dark render, `not all` to rule it out, and the original
  * query back again for auto. Rewriting `media` makes the browser re-pick the
  * source, so one render is fetched, not both.
+ *
+ * Only the sources this server wrote, which is what `data-theme-dark` marks. A
+ * mounted index page may hold pictures of the operator's own, with art-direction
+ * queries that mean something else entirely, and rewriting those would be this
+ * script editing somebody else's page.
  */
 const THEME_WIRING = `(function(){
 var root=document.documentElement;
@@ -78,7 +85,7 @@ var buttons=document.querySelectorAll("[data-theme-choice]");
 function apply(choice){
   if(choice==="light"||choice==="dark")root.dataset.theme=choice;else delete root.dataset.theme;
   var media=choice==="dark"?"all":choice==="light"?"not all":"(prefers-color-scheme: dark)";
-  var sources=document.querySelectorAll("picture > source");
+  var sources=document.querySelectorAll("source[data-theme-dark]");
   for(var i=0;i<sources.length;i++)sources[i].media=media;
   for(var j=0;j<buttons.length;j++){
     var on=buttons[j].dataset.themeChoice===choice;
@@ -320,7 +327,7 @@ const tileFigure = (
     <p class="meta">${escape(tile.lens)}${trail === "" ? "" : ` &middot; ${escape(trail)}`}</p>
   </figcaption>
   <picture>
-    ${dark === undefined ? "" : `<source srcset="${escape(imageUrl(origin, id, dark))}" media="(prefers-color-scheme: dark)">`}
+    ${dark === undefined ? "" : `<source srcset="${escape(imageUrl(origin, id, dark))}" media="(prefers-color-scheme: dark)" data-theme-dark>`}
     <img src="${escape(imageUrl(origin, id, light))}" width="${tile.width}" height="${tile.height}" alt="${escape(tile.title)}" loading="lazy">
   </picture>
 </figure>`;
