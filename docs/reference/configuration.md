@@ -25,8 +25,8 @@ with no safe default is a startup failure, not a 500 on the first request.
 | `GIT_USERNAME` | `oauth2` | The user half. Most hosts ignore it; Bitbucket wants `x-token-auth`. |
 | `GIT_BRANCH` | `main` | Branch the canvases live on. Created by the first mint if it is not there. |
 | `GIT_PREFIX` | `canvases` | Directory inside the repository. |
-| `GIT_AUTHOR_NAME` | `pr-lens-gitlab-backend` | Commit author name. |
-| `GIT_AUTHOR_EMAIL` | `pr-lens-gitlab-backend@localhost` | Commit author email. |
+| `GIT_AUTHOR_NAME` | `pr-lens-git-backend` | Commit author name. |
+| `GIT_AUTHOR_EMAIL` | `pr-lens-git-backend@localhost` | Commit author email. |
 | `GIT_MIRROR_DIR` | `$TMPDIR/pr-lens-canvases.git` | Where the mirror lives. A cache: delete it and the next call clones again. |
 | `GIT_FETCH_TTL_MS` | `0` | How long a fetched view may be reused. `0` asks the remote on every uncached read. A refused push re-fetches whatever this says. |
 | `GIT_TIMEOUT_MS` | `30000` | Ceiling on one `git` invocation. |
@@ -56,6 +56,14 @@ refused at startup with a sentence saying so rather than ignored.
 
 In the chart, `config.gitlab.project` becomes `config.git.remote` and the Secret
 holds `GIT_TOKEN` in place of `GITLAB_TOKEN`.
+
+The artefacts were renamed with the store, since `pr-lens-gitlab-backend` had
+stopped being true: the npm package, the image and the chart are all
+`pr-lens-git-backend` now, and everything published under the old name stays
+where it is. One thing to know before the first upgrade — the chart's name is
+part of every resource name it renders, so a release installed under the old
+chart has its Deployment and Service renamed, which Helm does as a replace.
+Setting `nameOverride: pr-lens-gitlab-backend` keeps the old names instead.
 
 ## Limits and caches
 
@@ -135,7 +143,7 @@ config:
 
 ## Chart values
 
-`charts/pr-lens-gitlab-backend/values.yaml` maps onto the table above under
+`charts/pr-lens-git-backend/values.yaml` maps onto the table above under
 `config.*`, and documents the Kubernetes-only settings: `secretName`,
 `ingress`, `httpRoute`, `resources`, `extraEnv`, `extraVolumes`,
 `extraVolumeMounts`.
@@ -146,7 +154,7 @@ Every call over https carries a `User-Agent` naming this server, its version and
 the instance — an ssh remote sends none of this, because ssh has no user agent:
 
 ```
-pr-lens-gitlab-backend/0.2.0 (lens-7b9f4-xk2)
+pr-lens-git-backend/0.2.0 (lens-7b9f4-xk2)
 ```
 
 The host is in the parenthesised comment because that is what RFC 9110 reserves
@@ -157,4 +165,4 @@ rather than to "the canvas server".
 In a pod that host is the pod name, which is exactly what you want. On a laptop it
 is the machine's name, which may be somebody's name and may be going to a host
 they do not run — hence `USER_AGENT_HOST`, which replaces it, or empties it for a
-plain `pr-lens-gitlab-backend/0.2.0`.
+plain `pr-lens-git-backend/0.2.0`.

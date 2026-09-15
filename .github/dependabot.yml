@@ -33,14 +33,14 @@ updates:
   # tag is empty on purpose: it resolves to appVersion, which release-please
   # writes.
   - package-ecosystem: "helm"
-    directory: "/charts/pr-lens-gitlab-backend"
+    directory: "/charts/pr-lens-git-backend"
     schedule:
       interval: "daily"
     commit-message:
       prefix: "fix"
       include: "scope"
     ignore:
-      - dependency-name: "ghcr.io/thejoeejoee/pr-lens-gitlab-backend"
+      - dependency-name: "ghcr.io/thejoeejoee/pr-lens-git-backend"
 
   # Actions never reach a user, so these are `ci` and release nothing. Grouped
   # because the alternative is eight pull requests that all say v7 to v8.

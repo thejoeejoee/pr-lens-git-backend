@@ -108,7 +108,7 @@ in the middle of a push is a stall nobody asked for.
 Every https call names itself:
 
 ```
-pr-lens-gitlab-backend/0.2.0 (lens-7b9f4-xk2)
+pr-lens-git-backend/0.2.0 (lens-7b9f4-xk2)
 ```
 
 The bracketed part is the instance — the pod name in a cluster — so a rate limit

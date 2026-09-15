@@ -10,7 +10,7 @@ the server does its own, and never checks anything out of it.
 ## 1. Run the server with no store at all
 
 ```bash
-STORE=memory npx pr-lens-gitlab-backend
+STORE=memory npx pr-lens-git-backend
 ```
 
 It says what it is doing and warns you that `PUBLIC_URL` is unset — fine here,
@@ -20,7 +20,7 @@ because it will name `localhost` and that is where you are.
 > from the repository instead. It builds itself on the way in:
 >
 > ```bash
-> STORE=memory npx github:thejoeejoee/pr-lens-gitlab-backend
+> STORE=memory npx github:thejoeejoee/pr-lens-git-backend
 > ```
 
 ## 2. Push something to it
@@ -53,7 +53,7 @@ Stop the server and start it again pointed at both:
 STORE=git \
 GIT_REMOTE=https://gitlab.com/your-group/pr-lens-canvases.git \
 GIT_TOKEN=glpat-… \
-  npx pr-lens-gitlab-backend
+  npx pr-lens-git-backend
 ```
 
 If the token or the remote is wrong it refuses to start and says so, rather than

@@ -3,12 +3,18 @@
 replicaCount: 2
 
 image:
-  repository: ghcr.io/thejoeejoee/pr-lens-gitlab-backend
+  repository: ghcr.io/thejoeejoee/pr-lens-git-backend
   pullPolicy: IfNotPresent
   # Empty means the chart's appVersion, so a chart release pins its own image.
   tag: ""
 
 imagePullSecrets: []
+# The chart's own name is part of every resource name it renders, so a release
+# installed when this chart was called pr-lens-gitlab-backend will see its
+# Deployment and Service renamed on the first upgrade after the rename -- which
+# Helm does as a replace, briefly. Set this to the old name to keep them:
+#
+#   nameOverride: pr-lens-gitlab-backend
 nameOverride: ""
 fullnameOverride: ""
 
@@ -186,8 +192,8 @@ config:
     remote: ""
     branch: main
     prefix: canvases
-    authorName: pr-lens-gitlab-backend
-    authorEmail: pr-lens-gitlab-backend@example.com
+    authorName: pr-lens-git-backend
+    authorEmail: pr-lens-git-backend@example.com
     # Basic-auth user for an https remote; GIT_TOKEN is the password. Most hosts
     # ignore it; Bitbucket wants x-token-auth.
     username: oauth2

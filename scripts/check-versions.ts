@@ -36,7 +36,7 @@ const pkg = JSON.parse(readFileSync("package.json", "utf8")) as {
   version: string;
 };
 const chartYaml = readFileSync(
-  "charts/pr-lens-gitlab-backend/Chart.yaml",
+  "charts/pr-lens-git-backend/Chart.yaml",
   "utf8",
 );
 

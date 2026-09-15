@@ -221,7 +221,7 @@ export const customIndex = (file: string): CustomIndex => {
       if (!complained) {
         complained = true;
         console.error(
-          `[pr-lens-gitlab-backend] ${file} could not be read, serving the last copy: ${
+          `[pr-lens-git-backend] ${file} could not be read, serving the last copy: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );

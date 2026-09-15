@@ -1,5 +1,5 @@
 {
-  "name": "pr-lens-gitlab-backend",
+  "name": "pr-lens-git-backend",
   "version": "0.5.0",
   "description": "A lightweight PR Lens canvas server: version 1 of the canvas API, with a git repository as the store.",
   "keywords": [
@@ -14,15 +14,15 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/thejoeejoee/pr-lens-gitlab-backend.git"
+    "url": "git+https://github.com/thejoeejoee/pr-lens-git-backend.git"
   },
-  "homepage": "https://github.com/thejoeejoee/pr-lens-gitlab-backend#readme",
+  "homepage": "https://github.com/thejoeejoee/pr-lens-git-backend#readme",
   "bugs": {
-    "url": "https://github.com/thejoeejoee/pr-lens-gitlab-backend/issues"
+    "url": "https://github.com/thejoeejoee/pr-lens-git-backend/issues"
   },
   "type": "module",
   "bin": {
-    "pr-lens-gitlab-backend": "dist/index.js"
+    "pr-lens-git-backend": "dist/index.js"
   },
   "files": [
     "dist",

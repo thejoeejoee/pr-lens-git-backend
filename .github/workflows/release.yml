@@ -156,11 +156,11 @@ jobs:
         env:
           VERSION: ${{ needs.verify.outputs.version }}
         run: |
-          helm package charts/pr-lens-gitlab-backend \
+          helm package charts/pr-lens-git-backend \
             --version "$VERSION" --app-version "$VERSION" --destination dist-chart
           # An OCI registry, so the chart lives beside the image it installs and
           # needs no index.yaml and no gh-pages branch to serve it.
-          helm push "dist-chart/pr-lens-gitlab-backend-$VERSION.tgz" \
+          helm push "dist-chart/pr-lens-git-backend-$VERSION.tgz" \
             "oci://ghcr.io/${{ github.repository_owner }}/charts"
 
       - uses: actions/upload-artifact@v7

@@ -1,4 +1,4 @@
-{{ include "pr-lens-gitlab-backend.fullname" . }} is installed, speaking version
+{{ include "pr-lens-git-backend.fullname" . }} is installed, speaking version
 1 of the PR Lens canvas API.
 
 Point the CLI at it:
@@ -7,14 +7,14 @@ Point the CLI at it:
 {{- if .Values.config.publicUrl }}
   export PR_LENS_API_URL={{ .Values.config.publicUrl }}
 {{- else }}
-  export PR_LENS_API_URL={{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ first (splitList "," (include "pr-lens-gitlab-backend.ingressHosts" .)) }}
+  export PR_LENS_API_URL={{ if .Values.ingress.tls }}https{{ else }}http{{ end }}://{{ first (splitList "," (include "pr-lens-git-backend.ingressHosts" .)) }}
 {{- end }}
 {{- else if .Values.httpRoute.enabled }}
 
   export PR_LENS_API_URL=https://{{ first .Values.httpRoute.hostnames }}
 {{- else }}
 
-  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "pr-lens-gitlab-backend.fullname" . }} 8787:{{ .Values.service.port }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "pr-lens-git-backend.fullname" . }} 8787:{{ .Values.service.port }}
   export PR_LENS_API_URL=http://127.0.0.1:8787
 {{- end }}
 
@@ -25,7 +25,7 @@ config.publicUrl is empty, so every answer names whichever host the request
 arrived on. Behind an ingress or a gateway that is usually right; set it if
 anything rewrites the Host header, or the edit links the CLI prints will point
 at the wrong place.
-{{- if gt (len (splitList "," (include "pr-lens-gitlab-backend.ingressHosts" .))) 1 }}
+{{- if gt (len (splitList "," (include "pr-lens-git-backend.ingressHosts" .))) 1 }}
 
 This release answers on more than one host, which makes that worth doing rather
 than worth thinking about: a canvas pushed through one of them comes back as a

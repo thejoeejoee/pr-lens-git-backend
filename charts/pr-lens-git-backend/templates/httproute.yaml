@@ -2,8 +2,8 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: {{ include "pr-lens-gitlab-backend.fullname" . }}
-  labels: {{- include "pr-lens-gitlab-backend.labels" . | nindent 4 }}
+  name: {{ include "pr-lens-git-backend.fullname" . }}
+  labels: {{- include "pr-lens-git-backend.labels" . | nindent 4 }}
   {{- with .Values.httpRoute.annotations }}
   annotations: {{- toYaml . | nindent 4 }}
   {{- end }}
@@ -20,6 +20,6 @@ spec:
             type: PathPrefix
             value: /
       backendRefs:
-        - name: {{ include "pr-lens-gitlab-backend.fullname" . }}
+        - name: {{ include "pr-lens-git-backend.fullname" . }}
           port: {{ .Values.service.port }}
 {{- end }}

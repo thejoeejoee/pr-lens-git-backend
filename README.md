@@ -1,12 +1,12 @@
 <div align="center">
 
-# 🗺️ pr-lens-gitlab-backend
+# 🗺️ pr-lens-git-backend
 
 **A private [PR Lens](https://github.com/coldteadotai/pr-lens) canvas server — with a git repository as the whole database.**
 
-[![ci](https://github.com/thejoeejoee/pr-lens-gitlab-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/thejoeejoee/pr-lens-gitlab-backend/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/pr-lens-gitlab-backend?logo=npm&color=cb3837)](https://www.npmjs.com/package/pr-lens-gitlab-backend)
-[![image](https://img.shields.io/badge/ghcr.io-amd64%20%2B%20arm64-2496ed?logo=docker&logoColor=white)](https://github.com/thejoeejoee/pr-lens-gitlab-backend/pkgs/container/pr-lens-gitlab-backend)
+[![ci](https://github.com/thejoeejoee/pr-lens-git-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/thejoeejoee/pr-lens-git-backend/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/pr-lens-git-backend?logo=npm&color=cb3837)](https://www.npmjs.com/package/pr-lens-git-backend)
+[![image](https://img.shields.io/badge/ghcr.io-amd64%20%2B%20arm64-2496ed?logo=docker&logoColor=white)](https://github.com/thejoeejoee/pr-lens-git-backend/pkgs/container/pr-lens-git-backend)
 [![helm](https://img.shields.io/badge/helm-OCI-0f1689?logo=helm&logoColor=white)](docs/how-to/deploy-with-helm.md)
 [![canvas API](https://img.shields.io/badge/canvas%20API-v1-8b5cf6)](https://github.com/coldteadotai/pr-lens/blob/main/docs/canvas-api.md)
 [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -87,7 +87,7 @@ has the renames.
 ## 🚀 Start here
 
 ```bash
-STORE=memory npx pr-lens-gitlab-backend   # forgets everything on restart
+STORE=memory npx pr-lens-git-backend   # forgets everything on restart
 ```
 
 Then [the tutorial](docs/tutorial.md) — a canvas of your own, in a repository of
@@ -153,8 +153,8 @@ Releasing is merging a pull request. [release-please](https://github.com/googlea
 keeps one open, reading the conventional-commit subjects to pick the next version
 and write [the changelog](CHANGELOG.md); merging it tags, and the tag publishes
 all three artifacts at that version — npm with provenance,
-`ghcr.io/thejoeejoee/pr-lens-gitlab-backend` for amd64 and arm64, and
-`oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend`. There are no publishing
+`ghcr.io/thejoeejoee/pr-lens-git-backend` for amd64 and arm64, and
+`oci://ghcr.io/thejoeejoee/charts/pr-lens-git-backend`. There are no publishing
 secrets: npm is reached over OIDC as a trusted publisher, ghcr with the built-in
 token. [Cut a release](docs/how-to/releasing.md) has the detail.
 

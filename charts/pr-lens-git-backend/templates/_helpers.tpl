@@ -1,9 +1,9 @@
 {{/* The chart's own name, overridable. */}}
-{{- define "pr-lens-gitlab-backend.name" -}}
+{{- define "pr-lens-git-backend.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{- define "pr-lens-gitlab-backend.fullname" -}}
+{{- define "pr-lens-git-backend.fullname" -}}
 {{- if .Values.fullnameOverride -}}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
 {{- else -}}
@@ -24,24 +24,24 @@ so appending to it would take the result past what the API server accepts. The
 room the suffix needs comes off the base instead -- truncating afterwards would
 be worse than failing, since two suffixes would come back as the same name.
 */}}
-{{- define "pr-lens-gitlab-backend.suffixed" -}}
+{{- define "pr-lens-git-backend.suffixed" -}}
 {{- $room := int (sub 62 (len .suffix)) -}}
-{{- printf "%s-%s" (include "pr-lens-gitlab-backend.fullname" .root | trunc $room | trimSuffix "-") .suffix -}}
+{{- printf "%s-%s" (include "pr-lens-git-backend.fullname" .root | trunc $room | trimSuffix "-") .suffix -}}
 {{- end -}}
 
-{{- define "pr-lens-gitlab-backend.chart" -}}
+{{- define "pr-lens-git-backend.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
 
-{{- define "pr-lens-gitlab-backend.labels" -}}
-helm.sh/chart: {{ include "pr-lens-gitlab-backend.chart" . }}
-{{ include "pr-lens-gitlab-backend.selectorLabels" . }}
+{{- define "pr-lens-git-backend.labels" -}}
+helm.sh/chart: {{ include "pr-lens-git-backend.chart" . }}
+{{ include "pr-lens-git-backend.selectorLabels" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
 
-{{- define "pr-lens-gitlab-backend.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "pr-lens-gitlab-backend.name" . }}
+{{- define "pr-lens-git-backend.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "pr-lens-git-backend.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
@@ -54,7 +54,7 @@ both the rules and NOTES.txt -- a template may only return a string, and
 as the single-host spelling of the same thing. Setting both is not an error: the
 list wins, because a list is the more explicit of the two.
 */}}
-{{- define "pr-lens-gitlab-backend.ingressHosts" -}}
+{{- define "pr-lens-git-backend.ingressHosts" -}}
 {{- if .Values.ingress.hosts -}}
 {{- join "," .Values.ingress.hosts -}}
 {{- else -}}
@@ -71,7 +71,7 @@ scientific notation and the server is handed "4e+06" to parse. extraEnv goes
 through `nindent 0` rather than a bare `toYaml`, or the trim markers glue its
 first entry onto the line above.
 */}}
-{{- define "pr-lens-gitlab-backend.env" -}}
+{{- define "pr-lens-git-backend.env" -}}
 - name: PORT
   value: "8787"
 - name: HOST

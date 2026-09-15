@@ -298,7 +298,7 @@ const refuse = (res: ServerResponse, error: unknown): void => {
     return;
   }
 
-  console.error("[pr-lens-gitlab-backend] unhandled", error);
+  console.error("[pr-lens-git-backend] unhandled", error);
   sendJson(res, 500, {});
 };
 

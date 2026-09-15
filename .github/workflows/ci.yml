@@ -62,13 +62,13 @@ jobs:
           context: .
           push: false
           load: true
-          tags: pr-lens-gitlab-backend:ci
+          tags: pr-lens-git-backend:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: the image starts and answers
         run: |
-          docker run -d --name backend -p 8787:8787 -e STORE=memory pr-lens-gitlab-backend:ci
+          docker run -d --name backend -p 8787:8787 -e STORE=memory pr-lens-git-backend:ci
           for i in $(seq 1 30); do
             curl -fsS http://127.0.0.1:8787/healthz && break
             sleep 1
@@ -88,7 +88,7 @@ jobs:
           docker run -d --name store -p 8788:8787 \
             -v "$PWD/ci-canvases.git:/srv/canvases.git" \
             -e STORE=git -e GIT_REMOTE=/srv/canvases.git \
-            pr-lens-gitlab-backend:ci
+            pr-lens-git-backend:ci
           for i in $(seq 1 30); do
             curl -fsS http://127.0.0.1:8788/readyz && break
             sleep 1
@@ -106,20 +106,20 @@ jobs:
 
       - uses: azure/setup-helm@v5
 
-      - run: helm lint charts/pr-lens-gitlab-backend --strict
+      - run: helm lint charts/pr-lens-git-backend --strict
           --set config.git.remote=https://git.example.com/group/canvases.git
           --set secretName=pr-lens-git
 
       - name: it renders with an ingress
         run: |
-          helm template lens charts/pr-lens-gitlab-backend \
+          helm template lens charts/pr-lens-git-backend \
             --set config.git.remote=https://git.example.com/group/canvases.git \
             --set secretName=pr-lens-git \
             --set ingress.enabled=true > /dev/null
 
       - name: it renders with several ingress hosts
         run: |
-          helm template lens charts/pr-lens-gitlab-backend \
+          helm template lens charts/pr-lens-git-backend \
             --set config.git.remote=https://git.example.com/group/canvases.git \
             --set secretName=pr-lens-git \
             --set ingress.enabled=true \
@@ -128,14 +128,14 @@ jobs:
 
       - name: it renders with a Gateway API route
         run: |
-          helm template lens charts/pr-lens-gitlab-backend \
+          helm template lens charts/pr-lens-git-backend \
             --set config.git.remote=https://git.example.com/group/canvases.git \
             --set secretName=pr-lens-git \
             --set httpRoute.enabled=true > /dev/null
 
       - name: it renders with the cache sidecar
         run: |
-          helm template lens charts/pr-lens-gitlab-backend \
+          helm template lens charts/pr-lens-git-backend \
             --set config.git.remote=https://git.example.com/group/canvases.git \
             --set secretName=pr-lens-git \
             --set cache.enabled=true > /dev/null
@@ -146,12 +146,12 @@ jobs:
       - name: the VCL compiles
         run: |
           docker run --rm \
-            -v "$PWD/charts/pr-lens-gitlab-backend/files:/vcl:ro" \
+            -v "$PWD/charts/pr-lens-git-backend/files:/vcl:ro" \
             varnish:9 varnishd -C -f /vcl/default.vcl > /dev/null
 
       - name: an ingress with no host at all is refused
         run: |
-          if helm template lens charts/pr-lens-gitlab-backend \
+          if helm template lens charts/pr-lens-git-backend \
             --set config.git.remote=https://git.example.com/group/canvases.git \
             --set secretName=pr-lens-git \
             --set ingress.enabled=true \
@@ -162,7 +162,7 @@ jobs:
 
       - name: a git store with no remote is refused
         run: |
-          if helm template lens charts/pr-lens-gitlab-backend \
+          if helm template lens charts/pr-lens-git-backend \
             --set secretName=pr-lens-git > /dev/null 2>&1; then
             echo "the chart should have insisted on config.git.remote" >&2
             exit 1

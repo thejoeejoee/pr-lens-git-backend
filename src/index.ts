@@ -33,15 +33,15 @@ const main = async (): Promise<void> => {
   });
 
   console.log(
-    `[pr-lens-gitlab-backend] listening on http://${config.host}:${config.port}, store=${config.store}, draw=${config.draw}`,
+    `[pr-lens-git-backend] listening on http://${config.host}:${config.port}, store=${config.store}, draw=${config.draw}`,
   );
   if (config.publicUrl === undefined)
     console.log(
-      "[pr-lens-gitlab-backend] PUBLIC_URL is unset, so answers name whichever host the request arrived on",
+      "[pr-lens-git-backend] PUBLIC_URL is unset, so answers name whichever host the request arrived on",
     );
 
   const stop = (signal: string): void => {
-    console.log(`[pr-lens-gitlab-backend] ${signal}, closing`);
+    console.log(`[pr-lens-git-backend] ${signal}, closing`);
     server.close(() => process.exit(0));
     // A connection that will not close must not hold the process for ever.
     setTimeout(() => process.exit(0), 10_000).unref();
@@ -53,7 +53,7 @@ const main = async (): Promise<void> => {
 
 await main().catch((error: unknown) => {
   console.error(
-    `[pr-lens-gitlab-backend] cannot start: ${error instanceof Error ? error.message : String(error)}`,
+    `[pr-lens-git-backend] cannot start: ${error instanceof Error ? error.message : String(error)}`,
   );
   process.exit(1);
 });

@@ -108,7 +108,7 @@ const origin = (url: string): string => url.replace(/\/+$/, "");
 /**
  * What this server calls itself when it talks to the remote.
  *
- * `pr-lens-gitlab-backend/0.2.0 (pod-7b9f4)`, matching the CLI's own
+ * `pr-lens-git-backend/0.2.0 (pod-7b9f4)`, matching the CLI's own
  * `pr-lens-cli/<version>` and putting the host in the parenthesised comment
  * that RFC 9110 reserves for exactly this — `@` is not a legal character in a
  * product version, however common the habit.
@@ -116,7 +116,7 @@ const origin = (url: string): string => url.replace(/\/+$/, "");
  * The host is there so a rate limit or an audit entry can be traced to one
  * replica rather than to "the canvas server". In a pod that is the pod name; on
  * a laptop it is the machine's name, which is why `USER_AGENT_HOST` can replace
- * it, or empty it out for a plain `pr-lens-gitlab-backend/0.2.0`.
+ * it, or empty it out for a plain `pr-lens-git-backend/0.2.0`.
  */
 const userAgent = (): string => {
   const host = process.env.USER_AGENT_HOST ?? hostname();
@@ -124,8 +124,8 @@ const userAgent = (): string => {
   // is stricter than that, because a host name has no business being exotic.
   const safe = host.trim().replace(/[^A-Za-z0-9._:-]/g, "");
   return safe === ""
-    ? `pr-lens-gitlab-backend/${VERSION}`
-    : `pr-lens-gitlab-backend/${VERSION} (${safe})`;
+    ? `pr-lens-git-backend/${VERSION}`
+    : `pr-lens-git-backend/${VERSION} (${safe})`;
 };
 
 export const loadConfig = (): Config => {
@@ -156,8 +156,8 @@ export const loadConfig = (): Config => {
             branch: str("GIT_BRANCH", "main"),
             prefix: str("GIT_PREFIX", "canvases").replace(/^\/+|\/+$/g, ""),
             mirror: str("GIT_MIRROR_DIR", join(tmpdir(), "pr-lens-canvases.git")),
-            authorName: str("GIT_AUTHOR_NAME", "pr-lens-gitlab-backend"),
-            authorEmail: str("GIT_AUTHOR_EMAIL", "pr-lens-gitlab-backend@localhost"),
+            authorName: str("GIT_AUTHOR_NAME", "pr-lens-git-backend"),
+            authorEmail: str("GIT_AUTHOR_EMAIL", "pr-lens-git-backend@localhost"),
             // Most hosts ignore the user when the password is a token; the ones
             // that do not (Bitbucket wants x-token-auth) can say so.
             username: str("GIT_USERNAME", "oauth2"),

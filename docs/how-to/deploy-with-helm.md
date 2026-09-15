@@ -25,7 +25,7 @@ instead, as [connect a remote](connect-a-remote.md#over-ssh-with-a-key) shows.
 
 <!-- x-release-please-start-version -->
 ```bash
-helm install lens oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend \
+helm install lens oci://ghcr.io/thejoeejoee/charts/pr-lens-git-backend \
   --version 0.5.0 \
   --set secretName=pr-lens-git \
   --set config.git.remote=https://gitlab.example.com/platform/pr-lens-canvases.git \
@@ -137,4 +137,4 @@ and says which HTML that page may hold: everything except what executes.
 readiness and reaches the remote, so an unreachable remote takes pods out of the
 Service without restarting them in a loop.
 
-`charts/pr-lens-gitlab-backend/values.yaml` documents every setting.
+`charts/pr-lens-git-backend/values.yaml` documents every setting.
