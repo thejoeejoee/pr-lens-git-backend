@@ -4,6 +4,14 @@ Kept by [release-please](https://github.com/googleapis/release-please) from the
 conventional-commit subjects on `main`. Everything below 0.3.0 was written by
 hand, because the two releases before it predate that setup.
 
+## [0.6.1](https://github.com/thejoeejoee/pr-lens-git-backend/compare/v0.6.0...v0.6.1) (2026-09-15)
+
+
+### Documentation
+
+* **releasing:** say that a new package name needs one publish by hand ([32f3e9d](https://github.com/thejoeejoee/pr-lens-git-backend/commit/32f3e9d017c795eb5fd58848bd96753b2cfd0859))
+* **releasing:** say that a new package name needs one publish by hand ([c0170b8](https://github.com/thejoeejoee/pr-lens-git-backend/commit/c0170b8354629c2bdc081e7692e76fb78bab316b))
+
 ## [0.6.0](https://github.com/thejoeejoee/pr-lens-git-backend/compare/v0.5.0...v0.6.0) (2026-09-15)
 
 
