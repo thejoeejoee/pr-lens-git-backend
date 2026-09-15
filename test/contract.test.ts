@@ -499,6 +499,35 @@ describe("the pages and the pictures", () => {
     assert.match(html, /querySelectorAll\("source\[data-theme-dark\]"\)/);
   });
 
+  it("opens a diagram in a dialog, and says so only where one will open", async () => {
+    const html = await (await fetch(`${harness.url}/c/${id}`)).text();
+
+    assert.match(html, /<dialog class="lightbox"/);
+    assert.match(html, /data-lightbox-stage/);
+    // A browser without showModal is left with the page it already had, so the
+    // markup may not claim a picture is a button before the script has looked.
+    assert.match(html, /typeof dialog\.showModal!=="function"\)return/);
+    assert.doesNotMatch(html, /<picture [^>]*data-zoomable/);
+    assert.doesNotMatch(html, /<picture [^>]*role="button"/);
+    // Nothing is wired by an attribute: the policy below would refuse to run it.
+    assert.doesNotMatch(html, /\son[a-z]+="/);
+  });
+
+  it("leaves the dialog out of a page with no diagram to open", async () => {
+    const minted = await call(`${harness.url}/api/canvas`, { method: "POST" });
+
+    // The one stylesheet is every page's, so it is the dialog and the script
+    // that are absent, not the rules that would style them.
+    const empty = await (await fetch(`${harness.url}/c/${minted.body.id}`)).text();
+    assert.doesNotMatch(empty, /<dialog/);
+    assert.doesNotMatch(empty, /data-lightbox-stage/);
+
+    // Nor on the index page, which is words and no pictures.
+    const index = await (await fetch(`${harness.url}/`)).text();
+    assert.doesNotMatch(index, /<dialog/);
+    assert.doesNotMatch(index, /data-lightbox-stage/);
+  });
+
   it("runs its own script by nonce, and nothing else at all", async () => {
     const response = await fetch(`${harness.url}/c/${id}`);
     const html = await response.text();
