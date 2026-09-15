@@ -2,7 +2,7 @@
 
 # 🗺️ pr-lens-gitlab-backend
 
-**A private [PR Lens](https://github.com/coldteadotai/pr-lens) canvas server — with a GitLab repository as the whole database.**
+**A private [PR Lens](https://github.com/coldteadotai/pr-lens) canvas server — with a git repository as the whole database.**
 
 [![ci](https://github.com/thejoeejoee/pr-lens-gitlab-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/thejoeejoee/pr-lens-gitlab-backend/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/pr-lens-gitlab-backend?logo=npm&color=cb3837)](https://www.npmjs.com/package/pr-lens-gitlab-backend)
@@ -34,44 +34,55 @@ hosted app would answer with — this is a real one, straight out of `renderAll`
 </picture>
 </div>
 
-## 🧩 Why a GitLab repository is enough
+## 🧩 Why a git repository is enough
 
 The contract needs one thing that is easy to get wrong: `If-Match` has to be a
 **real compare-and-swap**, or two pushes on the same revision silently overwrite
 each other.
 
-GitLab's Commits API gives that away. An `update` action carries
-`last_commit_id`, and GitLab refuses the commit if that is no longer the blob's
-last commit — a compare-and-swap on one file, from an API that is already
-authenticated and already running in your organisation:
+Git hands that over twice. A blob's object id *is* a hash of its contents, so a
+read can hand back "the version I gave you" for free and a write can insist the
+path still holds it. And a push is a fast-forward or it is refused, so no write
+can land on a tip its author never saw:
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant C as pr-lens CLI
     participant S as this server
-    participant G as GitLab
+    participant G as the remote
 
     C->>S: PUT /api/canvas/{id} · If-Match 3
-    S->>G: GET canvases/Qk/{id}.json
-    G-->>S: rev 3 · last_commit_id abc123
-    S->>G: POST commits · update · last_commit_id abc123
-    alt abc123 is still the blob's last commit
-        G-->>S: 201 committed
+    S->>G: fetch
+    G-->>S: tip abc123 · blob 9f8e…
+    S->>G: push rev 4, fast-forward from abc123
+    alt abc123 is still the tip
+        G-->>S: taken
         S-->>C: 200 · rev 4 · tiles
-    else somebody committed first
-        G-->>S: 400 the file has changed
-        S-->>C: 409 REVISION_MOVED · rev 4
+    else somebody pushed first
+        S->>G: fetch, and look at the blob again
+        alt still 9f8e… — it was a different canvas
+            S->>G: push the commit, rebuilt
+            S-->>C: 200 · rev 4 · tiles
+        else the blob moved
+            S-->>C: 409 REVISION_MOVED · rev 4
+        end
     end
 ```
 
-No database, no lock, no lease. And a bonus the contract explicitly does not
-offer: every push is a commit, so `git log` over a canvas file **is** the
-revision history.
+No database, no lock, no lease, and no host-specific API — gitlab.com, a
+self-managed GitLab, GitHub, Gitea, Forgejo, a bare repository over ssh. Nothing
+is ever checked out: the server keeps a bare mirror and writes through plumbing,
+and that mirror is a cache it can lose without losing a canvas.
 
-Snippets have versions but no CAS; notes cap at 1 MB against the contract's 4 MB
-documents. [The long version](docs/explanation/why-gitlab.md) has the reasoning
-and the costs.
+And a bonus the contract explicitly does not offer: every push is a commit, so
+`git log` over a canvas file **is** the revision history.
+
+This began as a GitLab-API server, and the repository it wrote is the one this
+reads — same paths, same bytes, same commit messages, so moving is renaming a few
+environment variables. [The long version](docs/explanation/why-git.md) has the
+reasoning and the costs; [the migration table](docs/reference/configuration.md#coming-from-the-gitlab-api-store)
+has the renames.
 
 ## 🚀 Start here
 
@@ -79,17 +90,17 @@ and the costs.
 STORE=memory npx pr-lens-gitlab-backend   # forgets everything on restart
 ```
 
-Then [the tutorial](docs/tutorial.md) — a canvas of your own, in a GitLab project
-of your own, in about ten minutes.
+Then [the tutorial](docs/tutorial.md) — a canvas of your own, in a repository of
+your own, in about ten minutes.
 
 ## 📚 Documentation
 
 | | |
 | --- | --- |
 | 🎓 **[Tutorial](docs/tutorial.md)** | Your first canvas, from nothing. |
-| 🔧 **How-to** | [Self-managed GitLab](docs/how-to/self-managed-gitlab.md) · [Deploy with Helm](docs/how-to/deploy-with-helm.md) · [Put a CDN in front](docs/how-to/put-a-cdn-in-front.md) · [Cut a release](docs/how-to/releasing.md) |
+| 🔧 **How-to** | [Connect a remote](docs/how-to/connect-a-remote.md) · [Deploy with Helm](docs/how-to/deploy-with-helm.md) · [Put a CDN in front](docs/how-to/put-a-cdn-in-front.md) · [Cut a release](docs/how-to/releasing.md) |
 | 📖 **Reference** | [Configuration](docs/reference/configuration.md) · [Routes](docs/reference/routes.md) · [Storage layout](docs/reference/storage.md) |
-| 💡 **Explanation** | [Why GitLab works](docs/explanation/why-gitlab.md) · [Determinism and caching](docs/explanation/determinism-and-caching.md) |
+| 💡 **Explanation** | [Why git works](docs/explanation/why-git.md) · [Determinism and caching](docs/explanation/determinism-and-caching.md) |
 
 ## ⚡ The CDN half
 
@@ -128,7 +139,7 @@ because the headers above are already the whole policy.
 
 ```bash
 npm ci
-npm test          # 35: the contract over HTTP, the store against a fake GitLab
+npm test          # 61: the contract over HTTP, the store against a real repository
 npm run typecheck
 npm run dev       # reloads on change
 npm run build     # dist/, which is what gets published

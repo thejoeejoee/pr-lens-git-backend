@@ -19,29 +19,57 @@ with no safe default is a startup failure, not a 500 on the first request.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `STORE` | `gitlab` | `gitlab`, or `memory` for a store that forgets on restart. |
-| `GITLAB_URL` | `https://gitlab.com` | Your instance. See [self-managed GitLab](../how-to/self-managed-gitlab.md). |
-| `GITLAB_PROJECT` | — | Numeric id or full path. Required when `STORE=gitlab`. |
-| `GITLAB_TOKEN` | — | Project access token, `api` scope, Developer role. |
-| `GITLAB_BRANCH` | `main` | Branch the canvases live on. |
-| `GITLAB_PREFIX` | `canvases` | Directory inside the repository. |
-| `GITLAB_AUTHOR_NAME` | `pr-lens-gitlab-backend` | Commit author name. |
-| `GITLAB_AUTHOR_EMAIL` | `pr-lens-gitlab-backend@localhost` | Commit author email. |
-| `USER_AGENT_HOST` | the machine's host name | The host named in the `User-Agent` sent to GitLab. Empty omits it. |
+| `STORE` | `git` | `git`, or `memory` for a store that forgets on restart. |
+| `GIT_REMOTE` | — | Anything `git fetch` takes. Required when `STORE=git`. See [connect a remote](../how-to/connect-a-remote.md). |
+| `GIT_TOKEN` | — | The password half of basic auth on an https remote. Unset for ssh. |
+| `GIT_USERNAME` | `oauth2` | The user half. Most hosts ignore it; Bitbucket wants `x-token-auth`. |
+| `GIT_BRANCH` | `main` | Branch the canvases live on. Created by the first mint if it is not there. |
+| `GIT_PREFIX` | `canvases` | Directory inside the repository. |
+| `GIT_AUTHOR_NAME` | `pr-lens-gitlab-backend` | Commit author name. |
+| `GIT_AUTHOR_EMAIL` | `pr-lens-gitlab-backend@localhost` | Commit author email. |
+| `GIT_MIRROR_DIR` | `$TMPDIR/pr-lens-canvases.git` | Where the mirror lives. A cache: delete it and the next call clones again. |
+| `GIT_FETCH_TTL_MS` | `0` | How long a fetched view may be reused. `0` asks the remote on every uncached read. A refused push re-fetches whatever this says. |
+| `GIT_TIMEOUT_MS` | `30000` | Ceiling on one `git` invocation. |
+| `USER_AGENT_HOST` | the machine's host name | The host named in the `User-Agent` sent to an https remote. Empty omits it. |
+
+`GIT_SSH_COMMAND`, `GIT_SSL_CAINFO` and the rest of git's own environment are
+passed through untouched, which is how an ssh key or a private CA gets named.
+The system and global `gitconfig` are not read, so this server behaves the same
+on a laptop, in a container and in CI.
+
+### Coming from the GitLab-API store
+
+The repository is unchanged — same paths, same bytes, same commit messages — so
+migrating is renaming environment variables and restarting. `STORE=gitlab` is
+refused at startup with a sentence saying so rather than ignored.
+
+| Was | Is |
+| --- | --- |
+| `STORE=gitlab` | `STORE=git` |
+| `GITLAB_URL` + `GITLAB_PROJECT` | `GIT_REMOTE`, the two joined into a clone URL |
+| `GITLAB_TOKEN` | `GIT_TOKEN` — and the scope it needs is now `write_repository`, not `api` |
+| `GITLAB_BRANCH` | `GIT_BRANCH` |
+| `GITLAB_PREFIX` | `GIT_PREFIX` |
+| `GITLAB_AUTHOR_NAME` | `GIT_AUTHOR_NAME` |
+| `GITLAB_AUTHOR_EMAIL` | `GIT_AUTHOR_EMAIL` |
+| `NODE_EXTRA_CA_CERTS`, for a private CA | `GIT_SSL_CAINFO` |
+
+In the chart, `config.gitlab.project` becomes `config.git.remote` and the Secret
+holds `GIT_TOKEN` in place of `GITLAB_TOKEN`.
 
 ## Limits and caches
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `MAX_BODY_BYTES` | `4000000` | Above this, `TOO_LARGE`. The hosted app's limit. |
-| `READ_CACHE_TTL_MS` | `5000` | How long a read may be answered from memory. `0` disables. |
+| `READ_CACHE_TTL_MS` | `5000` | How long a read may be answered from memory, before the store is asked again. `0` disables. |
 | `RENDER_CACHE_BYTES` | `64000000` | Ceiling on rendered SVG bytes held in memory, evicted least-recently-used. |
 | `DRAW` | `true` | `false` makes this a pure store: every answer carries `tiles: []`. |
 | `MINTS_PER_HOUR_PER_IP` | `60` | `0` turns the meter off. Per pod. |
 | `PUSHES_PER_MINUTE_PER_CANVAS` | `30` | `0` turns the meter off. Per pod. |
 | `IMAGE_CACHE_CONTROL` | `public, max-age=31536000, immutable` | For the content-addressed pictures. |
 | `EMBED_CACHE_CONTROL` | `public, max-age=60, stale-while-revalidate=300` | For `/c/{id}.svg`. |
-| `NODE_EXTRA_CA_CERTS` | — | Node's own: a CA bundle for a GitLab behind a private CA. |
+| `NODE_EXTRA_CA_CERTS` | — | Node's own. Not what reaches the repository any more: an https remote behind a private CA is git's connection, so it is `GIT_SSL_CAINFO`. |
 
 `.env.example` carries the same list with the reasoning attached.
 
@@ -63,7 +91,7 @@ Five placeholders are filled in, since whoever writes the file cannot know them:
 | Placeholder | Becomes |
 | --- | --- |
 | `{{origin}}` | This server's origin, the same one the API answers name. |
-| `{{store}}` | `gitlab` or `memory`. |
+| `{{store}}` | `git` or `memory`. |
 | `{{canvases}}` | How many canvases are held. |
 | `{{version}}` | This server's version. |
 | `{{diagrams}}` | `drawn on push`, or `not drawn` when `DRAW=false`. |
@@ -85,7 +113,7 @@ and every page this server serves carries a `Content-Security-Policy` naming its
 own script by nonce, so nothing else runs even if something got past the first
 rule. Everything else is left exactly as written.
 
-That is deliberately stricter than "the operator could have set `GITLAB_TOKEN`
+That is deliberately stricter than "the operator could have set `GIT_TOKEN`
 anyway". A page one `kubectl edit` from anybody with access to the namespace is a
 tempting place to put a beacon in, and this way there is nothing to argue about.
 Pictures are not code, so the custom page may show images from anywhere; a page
@@ -112,10 +140,10 @@ config:
 `ingress`, `httpRoute`, `resources`, `extraEnv`, `extraVolumes`,
 `extraVolumeMounts`.
 
-## What GitLab sees
+## What the host sees
 
-Every call carries a `User-Agent` naming this server, its version and the
-instance:
+Every call over https carries a `User-Agent` naming this server, its version and
+the instance — an ssh remote sends none of this, because ssh has no user agent:
 
 ```
 pr-lens-gitlab-backend/0.2.0 (lens-7b9f4-xk2)
@@ -127,6 +155,6 @@ habit. It is there so a rate limit or an audit entry can be traced to one replic
 rather than to "the canvas server".
 
 In a pod that host is the pod name, which is exactly what you want. On a laptop it
-is the machine's name, which may be somebody's name and may be going to
-gitlab.com — hence `USER_AGENT_HOST`, which replaces it, or empties it for a plain
-`pr-lens-gitlab-backend/0.2.0`.
+is the machine's name, which may be somebody's name and may be going to a host
+they do not run — hence `USER_AGENT_HOST`, which replaces it, or empties it for a
+plain `pr-lens-gitlab-backend/0.2.0`.

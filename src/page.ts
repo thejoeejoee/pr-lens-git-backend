@@ -364,7 +364,7 @@ ${body}
 
 /** What the index page says about the server behind it. */
 export type Facts = {
-  /** "gitlab" or "memory" — which is the difference between kept and forgotten. */
+  /** "git" or "memory" — which is the difference between kept and forgotten. */
   store: string;
   /** False means every answer carries `tiles: []`. */
   draws: boolean;

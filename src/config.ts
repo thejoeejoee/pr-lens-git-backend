@@ -1,4 +1,5 @@
-import { hostname } from "node:os";
+import { hostname, tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { VERSION } from "./version.ts";
 
@@ -10,16 +11,28 @@ import { VERSION } from "./version.ts";
  * not half-working, it is not working.
  */
 
-export type GitLabSettings = {
-  baseUrl: string;
-  /** Sent on every call, so GitLab's logs can name which instance called. */
-  userAgent: string;
-  project: string;
-  token: string;
+export type GitSettings = {
+  /** Anything `git fetch` takes: an https URL, an ssh URL, a path. */
+  remote: string;
   branch: string;
   prefix: string;
+  /**
+   * Where the local mirror lives. Disposable by design: it holds no truth the
+   * remote does not, so deleting it costs one clone and nothing else.
+   */
+  mirror: string;
   authorName: string;
   authorEmail: string;
+  /** Basic-auth user for an https remote; the token is the password. */
+  username: string;
+  /** Undefined for a remote that authenticates some other way, ssh included. */
+  token: string | undefined;
+  /** Sent as http.userAgent, so the host's logs can name which replica called. */
+  userAgent: string;
+  /** Ceiling on a single git invocation. */
+  timeoutMs: number;
+  /** How long a fetched view may be reused before the remote is asked again. */
+  fetchTtlMs: number;
 };
 
 export type Config = {
@@ -27,8 +40,8 @@ export type Config = {
   port: number;
   /** Origin the answers' URLs are built from; undefined means "ask the request". */
   publicUrl: string | undefined;
-  store: "gitlab" | "memory";
-  gitlab: GitLabSettings | undefined;
+  store: "git" | "memory";
+  git: GitSettings | undefined;
   /** Largest push body accepted, in bytes. */
   maxBodyBytes: number;
   /** How long a read may be served from memory before the store is asked again. */
@@ -93,7 +106,7 @@ const bool = (name: string, fallback: boolean): boolean => {
 const origin = (url: string): string => url.replace(/\/+$/, "");
 
 /**
- * What this server calls itself when it calls GitLab.
+ * What this server calls itself when it talks to the remote.
  *
  * `pr-lens-gitlab-backend/0.2.0 (pod-7b9f4)`, matching the CLI's own
  * `pr-lens-cli/<version>` and putting the host in the parenthesised comment
@@ -116,9 +129,15 @@ const userAgent = (): string => {
 };
 
 export const loadConfig = (): Config => {
-  const store = str("STORE", "gitlab");
-  if (store !== "gitlab" && store !== "memory")
-    throw new Error(`STORE must be "gitlab" or "memory", got ${store}`);
+  const store = str("STORE", "git");
+  // Named on its own, because a deployment carrying the old value is one env
+  // rename away from working and deserves to be told which one.
+  if (store === "gitlab")
+    throw new Error(
+      'STORE=gitlab is gone: the store now speaks git to any remote. Set STORE=git, GIT_REMOTE to the repository GITLAB_PROJECT named, and GIT_TOKEN to what GITLAB_TOKEN held. The files in the repository are unchanged.',
+    );
+  if (store !== "git" && store !== "memory")
+    throw new Error(`STORE must be "git" or "memory", got ${store}`);
 
   const publicUrl = process.env.PUBLIC_URL?.trim();
 
@@ -130,18 +149,24 @@ export const loadConfig = (): Config => {
         ? undefined
         : origin(publicUrl),
     store,
-    gitlab:
-      store === "gitlab"
+    git:
+      store === "git"
         ? {
-            baseUrl: origin(str("GITLAB_URL", "https://gitlab.com")),
-            // Numeric id or the path, which the store percent-encodes.
-            project: str("GITLAB_PROJECT"),
-            token: str("GITLAB_TOKEN"),
-            branch: str("GITLAB_BRANCH", "main"),
-            prefix: str("GITLAB_PREFIX", "canvases").replace(/^\/+|\/+$/g, ""),
-            authorName: str("GITLAB_AUTHOR_NAME", "pr-lens-gitlab-backend"),
-            authorEmail: str("GITLAB_AUTHOR_EMAIL", "pr-lens-gitlab-backend@localhost"),
+            remote: str("GIT_REMOTE"),
+            branch: str("GIT_BRANCH", "main"),
+            prefix: str("GIT_PREFIX", "canvases").replace(/^\/+|\/+$/g, ""),
+            mirror: str("GIT_MIRROR_DIR", join(tmpdir(), "pr-lens-canvases.git")),
+            authorName: str("GIT_AUTHOR_NAME", "pr-lens-gitlab-backend"),
+            authorEmail: str("GIT_AUTHOR_EMAIL", "pr-lens-gitlab-backend@localhost"),
+            // Most hosts ignore the user when the password is a token; the ones
+            // that do not (Bitbucket wants x-token-auth) can say so.
+            username: str("GIT_USERNAME", "oauth2"),
+            token: optional("GIT_TOKEN"),
             userAgent: userAgent(),
+            timeoutMs: int("GIT_TIMEOUT_MS", 30_000),
+            // Zero means every read asks the remote, which is what the GitLab
+            // API call used to cost and the freshness the docs promise.
+            fetchTtlMs: int("GIT_FETCH_TTL_MS", 0),
           }
         : undefined,
     maxBodyBytes: int("MAX_BODY_BYTES", 4_000_000),

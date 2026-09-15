@@ -10,7 +10,7 @@ import { VERSION } from "./version.ts";
  *
  * The page at `/` is this server's idea of what a stranger needs to know, which
  * is not always the right one: a team running this internally would rather say
- * which GitLab project is behind it, who to ask, and which of their own commands
+ * which repository is behind it, who to ask, and which of their own commands
  * to run. `INDEX_MARKDOWN_FILE` points at a file, and that file becomes the page.
  *
  * A file rather than a setting, because the natural home for a page of prose in
@@ -25,7 +25,7 @@ import { VERSION } from "./version.ts";
  *
  * Belt and braces on purpose. A page that is one `kubectl edit` away from
  * anybody with access to the namespace is a tempting place to put a beacon or a
- * token-grabber in, and "the operator could have set GITLAB_TOKEN anyway" is an
+ * token-grabber in, and "the operator could have set GIT_TOKEN anyway" is an
  * argument about the operator, not about whoever ends up editing that ConfigMap.
  */
 

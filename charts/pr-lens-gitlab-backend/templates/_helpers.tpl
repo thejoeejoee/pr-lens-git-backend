@@ -82,19 +82,25 @@ first entry onto the line above.
 - name: PUBLIC_URL
   value: {{ . | quote }}
 {{- end }}
-{{- if eq .Values.config.store "gitlab" }}
-- name: GITLAB_URL
-  value: {{ .Values.config.gitlab.url | quote }}
-- name: GITLAB_PROJECT
-  value: {{ required "config.gitlab.project is required when config.store is gitlab" .Values.config.gitlab.project | quote }}
-- name: GITLAB_BRANCH
-  value: {{ .Values.config.gitlab.branch | quote }}
-- name: GITLAB_PREFIX
-  value: {{ .Values.config.gitlab.prefix | quote }}
-- name: GITLAB_AUTHOR_NAME
-  value: {{ .Values.config.gitlab.authorName | quote }}
-- name: GITLAB_AUTHOR_EMAIL
-  value: {{ .Values.config.gitlab.authorEmail | quote }}
+{{- if eq .Values.config.store "git" }}
+- name: GIT_REMOTE
+  value: {{ required "config.git.remote is required when config.store is git" .Values.config.git.remote | quote }}
+- name: GIT_BRANCH
+  value: {{ .Values.config.git.branch | quote }}
+- name: GIT_PREFIX
+  value: {{ .Values.config.git.prefix | quote }}
+- name: GIT_AUTHOR_NAME
+  value: {{ .Values.config.git.authorName | quote }}
+- name: GIT_AUTHOR_EMAIL
+  value: {{ .Values.config.git.authorEmail | quote }}
+- name: GIT_USERNAME
+  value: {{ .Values.config.git.username | quote }}
+- name: GIT_MIRROR_DIR
+  value: {{ .Values.config.git.mirrorDir | quote }}
+- name: GIT_FETCH_TTL_MS
+  value: {{ .Values.config.git.fetchTtlMs | int64 | quote }}
+- name: GIT_TIMEOUT_MS
+  value: {{ .Values.config.git.timeoutMs | int64 | quote }}
 {{- end }}
 - name: MAX_BODY_BYTES
   value: {{ .Values.config.maxBodyBytes | int64 | quote }}

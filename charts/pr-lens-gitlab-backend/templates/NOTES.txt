@@ -35,5 +35,5 @@ on which you used. Set config.publicUrl to the canonical host.
 {{- end }}
 {{ if eq .Values.config.store "memory" -}}
 config.store is "memory": every canvas is forgotten when a pod restarts. Set it
-to "gitlab" and give it a project before anyone relies on a link.
+to "git" and give it a remote before anyone relies on a link.
 {{- end }}

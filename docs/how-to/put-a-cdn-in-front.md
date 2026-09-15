@@ -53,8 +53,8 @@ Cache was renamed to, now at 9.x) in the pod, in front of the server:
 
 ```bash
 helm upgrade --install lens oci://ghcr.io/thejoeejoee/charts/pr-lens-gitlab-backend \
-  --set secretName=pr-lens-gitlab \
-  --set config.gitlab.project=platform/pr-lens-canvases \
+  --set secretName=pr-lens-git \
+  --set config.git.remote=https://gitlab.example.com/platform/pr-lens-canvases.git \
   --set cache.enabled=true
 ```
 

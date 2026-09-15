@@ -604,20 +604,27 @@ describe("the index page", () => {
   });
 
   it("keeps the token out, while saying which store it is", async () => {
+    // A remote that is not there, so the page is rendered without a round trip
+    // going anywhere. What it says about the store is the point; the count it
+    // cannot take is allowed to be missing.
+    const nowhere = await mkdtemp(join(tmpdir(), "pr-lens-nowhere-"));
     const withStore = await start({
       LOG_REQUESTS: "false",
-      STORE: "gitlab",
-      GITLAB_URL: "https://git.internal.example.com",
-      GITLAB_PROJECT: "secret-group/canvases",
-      GITLAB_TOKEN: "glpat-do-not-leak-me",
+      STORE: "git",
+      GIT_REMOTE: join(nowhere, "canvases.git"),
+      GIT_MIRROR_DIR: join(nowhere, "mirror.git"),
+      GIT_TOKEN: "glpat-do-not-leak-me",
     });
     try {
       const html = await (await fetch(withStore.url + "/")).text();
 
       assert.ok(!html.includes("glpat-do-not-leak-me"), "the token is on the page");
-      assert.match(html, /gitlab/);
+      // The fact itself, not the word: this server's own name has "git" in it,
+      // so anything looser would pass whatever the store turned out to be.
+      assert.match(html, /<dt>Store<\/dt><dd>git</);
     } finally {
       await withStore.close();
+      await rm(nowhere, { recursive: true, force: true });
     }
   });
 

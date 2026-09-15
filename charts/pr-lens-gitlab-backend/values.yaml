@@ -25,19 +25,27 @@ podSecurityContext:
 
 securityContext:
   allowPrivilegeEscalation: false
-  # Nothing is written to disk; the one writable path is an emptyDir at /tmp.
+  # The only thing written to disk is the git mirror, in an emptyDir at /tmp.
   readOnlyRootFilesystem: true
   capabilities:
     drop: ["ALL"]
 
-# The Secret holding GITLAB_TOKEN. Every key in it arrives as an environment
+# The emptyDir mounted at /tmp, which is where the git mirror lives. Sized for
+# the repository and the room a fetch needs to unpack into -- documents are
+# small, but every revision of every canvas is still in there.
+tmpSize: 1Gi
+
+# The Secret holding GIT_TOKEN. Every key in it arrives as an environment
 # variable, so anything else worth keeping out of a values file can go in it too
 # -- though a name the settings below already set wins there, not here. This
 # chart does not create it: a token belongs to whatever manages your secrets,
 # not to a chart release.
 #
-#   kubectl create secret generic pr-lens-gitlab \
-#     --from-literal=GITLAB_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx
+#   kubectl create secret generic pr-lens-git \
+#     --from-literal=GIT_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx
+#
+# Leave it empty for a remote that authenticates some other way -- an ssh key,
+# or a host that needs no credential at all.
 secretName: ""
 
 service:
@@ -163,17 +171,36 @@ config:
   # usually right but is worth stating.
   publicUrl: ""
 
-  # gitlab or memory. memory forgets every canvas when a pod restarts.
-  store: gitlab
+  # git or memory. memory forgets every canvas when a pod restarts.
+  store: git
 
-  gitlab:
-    url: https://gitlab.com
-    # Numeric project id or the full path. Required when store is gitlab.
-    project: ""
+  git:
+    # Anything git can fetch from and push to. Required when store is git.
+    #
+    #   https://gitlab.example.com/my-group/canvases.git
+    #   ssh://git@github.com/my-org/canvases.git
+    #
+    # An https remote takes GIT_TOKEN from the Secret below; an ssh one takes a
+    # key, which means mounting it with extraVolumes and pointing
+    # GIT_SSH_COMMAND at it through extraEnv.
+    remote: ""
     branch: main
     prefix: canvases
     authorName: pr-lens-gitlab-backend
     authorEmail: pr-lens-gitlab-backend@example.com
+    # Basic-auth user for an https remote; GIT_TOKEN is the password. Most hosts
+    # ignore it; Bitbucket wants x-token-auth.
+    username: oauth2
+    # Where the mirror of the repository lives. Under /tmp because that is the
+    # one writable path when the root filesystem is read-only, which also means
+    # a pod that moves re-clones -- the mirror is a cache, not a copy of record.
+    mirrorDir: /tmp/pr-lens-canvases.git
+    # Zero asks the remote on every read that the read cache did not answer,
+    # which is the freshness the docs promise. Raise it to trade freshness for
+    # round trips.
+    fetchTtlMs: 0
+    # Ceiling on a single git invocation, fetches and pushes included.
+    timeoutMs: 30000
 
   maxBodyBytes: 4000000
   readCacheTtlMs: 5000
