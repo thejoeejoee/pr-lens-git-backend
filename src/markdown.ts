@@ -1,6 +1,6 @@
 import { readFile, stat } from "node:fs/promises";
 
-import { marked } from "marked";
+import { Marked } from "marked";
 import type { Facts } from "./page.ts";
 import { VERSION } from "./version.ts";
 
@@ -18,13 +18,76 @@ import { VERSION } from "./version.ts";
  * also means it can be edited without a rollout: the file is re-read whenever it
  * changes on disk, so `kubectl edit configmap` is the whole deployment.
  *
- * What the file may contain is GitHub-flavoured Markdown — and raw HTML, which
- * `marked` passes through untouched. That is a deliberate consequence of where
- * the file comes from: whoever can mount it can already set `GITLAB_TOKEN`, so
- * there is nothing here for an escaping rule to protect. It does mean a stray
- * `<script>` in that file runs on this origin, like any other thing an operator
- * puts in their own page.
+ * What the file may contain is GitHub-flavoured Markdown, and raw HTML for the
+ * things Markdown has no syntax for — but nothing that executes. Scripts are
+ * dropped here and could not run anyway: the page is served under a
+ * Content-Security-Policy that admits only this server's own script, by nonce.
+ *
+ * Belt and braces on purpose. A page that is one `kubectl edit` away from
+ * anybody with access to the namespace is a tempting place to put a beacon or a
+ * token-grabber in, and "the operator could have set GITLAB_TOKEN anyway" is an
+ * argument about the operator, not about whoever ends up editing that ConfigMap.
  */
+
+/**
+ * Raw HTML from the file, with everything that can execute taken out.
+ *
+ * This is not a general-purpose sanitiser and does not try to be one — the
+ * Content-Security-Policy is what actually guarantees nothing runs. What this
+ * does is make the page say so honestly: a `<script>` in the file is gone rather
+ * than present and silently refused, which is what somebody reading their own
+ * page would expect to see.
+ *
+ * Only the raw-HTML tokens pass through here. Everything the renderer generates
+ * itself is untouched, so there is no chance of mangling a table or a code fence
+ * on the way past.
+ */
+const EXECUTES = "script|iframe|frame|frameset|object|embed|applet|base|meta|link|form";
+
+const sanitize = (html: string): string =>
+  html
+    // The element and its contents, so the body of a <script> does not survive
+    // as visible text on the page.
+    .replace(
+      new RegExp(`<(${EXECUTES})\\b[^>]*>[\\s\\S]*?<\\/\\1\\s*>`, "gi"),
+      "",
+    )
+    // A lone tag of the same kind: void elements, and either half of a pair that
+    // arrived as its own inline token.
+    .replace(new RegExp(`<\\/?(?:${EXECUTES})\\b[^>]*>`, "gi"), "")
+    // onclick, onerror, onload and the rest of them.
+    .replace(/\son[a-z]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    // javascript: in anything that navigates. A data: URL stays: it is how an
+    // image gets inlined, and a data: document cannot reach this origin.
+    .replace(
+      /\s(href|src|xlink:href|action|formaction)\s*=\s*(?:"\s*(?:java|vb)script:[^"]*"|'\s*(?:java|vb)script:[^']*'|\s*(?:java|vb)script:[^\s>]*)/gi,
+      "",
+    );
+
+/** The same rule for a link Markdown wrote itself, which never passes through sanitize. */
+const safeHref = (href: string): string =>
+  /^\s*(?:java|vb)script:/i.test(href) ? "" : href;
+
+/**
+ * One renderer, built once. `marked` is stateful per instance, so this is an
+ * instance rather than the module-level singleton every other importer shares.
+ */
+const renderer = new Marked({ gfm: true }).use({
+  renderer: {
+    html: ({ text }: { text: string }) => sanitize(text),
+    link({ href, title, tokens }) {
+      const safe = safeHref(href);
+      const text = this.parser.parseInline(tokens);
+      if (safe === "") return text;
+      return `<a href="${safe}"${title === null || title === undefined ? "" : ` title="${title}"`}>${text}</a>`;
+    },
+    image({ href, title, text }) {
+      const safe = safeHref(href);
+      if (safe === "") return text;
+      return `<img src="${safe}" alt="${text}"${title === null || title === undefined ? "" : ` title="${title}"`}>`;
+    },
+  },
+});
 
 /** Placeholders the page may use, since the operator writing it knows none of them. */
 const substitute = (
@@ -118,7 +181,7 @@ export const customIndex = (file: string): CustomIndex => {
       const markdown = substitute(await source(), origin, facts);
       return {
         title: titleOf(markdown) ?? "PR Lens canvas server",
-        body: marked.parse(markdown, { async: false, gfm: true }),
+        body: renderer.parse(markdown, { async: false }),
       };
     },
   };

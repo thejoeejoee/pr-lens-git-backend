@@ -112,7 +112,7 @@ if(group)group.addEventListener("keydown",function(event){
  * stylesheet is a second thing to cache, invalidate and get wrong, and this is
  * two kilobytes.
  */
-const shell = (title: string, body: string): string => `<!doctype html>
+const shell = (title: string, body: string, nonce: string): string => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -244,15 +244,40 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--edg
   .themes button { padding: .3rem .55rem; font-size: .75rem; }
 }
 </style>
-<script>${THEME_BOOT}</script>
+<script nonce="${nonce}">${THEME_BOOT}</script>
 </head>
 <body>
 ${THEMES}
 ${body}
-<script>${THEME_WIRING}</script>
+<script nonce="${nonce}">${THEME_WIRING}</script>
 </body>
 </html>
 `;
+
+/**
+ * What the page is allowed to do, which is: show itself.
+ *
+ * The scripts this server writes are named by a nonce, and nothing else may run
+ * — not an inline `<script>` that reached the page some other way, not an
+ * `onclick=`, not a `javascript:` link. That is the guarantee behind letting an
+ * operator write raw HTML into their own index page: their HTML is theirs, but
+ * it is not code.
+ *
+ * `images` is the one thing that differs between the two kinds of page. A page
+ * this server wrote shows pictures from this server; a page an operator wrote
+ * may well point at their intranet's logo, and breaking that to no purpose would
+ * be a policy about nothing. Styles stay `unsafe-inline`, since that is what an
+ * inline `style=` attribute needs and a stylesheet cannot execute anything.
+ */
+export const pageCsp = (nonce: string, images: "self" | "anywhere"): string =>
+  [
+    "default-src 'none'",
+    images === "self" ? "img-src 'self'" : "img-src * data:",
+    "style-src 'unsafe-inline'",
+    `script-src 'nonce-${nonce}'`,
+    "base-uri 'none'",
+    "form-action 'none'",
+  ].join("; ");
 
 /** The tile the embed shows, which the contract fixes as the first one. */
 export const heroOf = (canvas: Canvas) =>
@@ -301,7 +326,11 @@ const tileFigure = (
 </figure>`;
 };
 
-export const canvasPage = (origin: string, canvas: Canvas): string => {
+export const canvasPage = (
+  origin: string,
+  canvas: Canvas,
+  nonce: string,
+): string => {
   const title = canvas.document?.title ?? canvas.id;
   const summary = canvas.document?.summary;
   const tiles = canvas.drawing.tiles;
@@ -323,6 +352,7 @@ ${summary === undefined ? "" : `<p class="lede">${escape(summary)}</p>`}
 <p class="rev">Revision ${canvas.rev} &middot; ${tiles.length} diagram${tiles.length === 1 ? "" : "s"}</p>
 ${body}
 </main>`,
+    nonce,
   );
 };
 
@@ -348,7 +378,11 @@ export type Facts = {
  * No canvas id appears, since an id is a read capability. Everything else about
  * the server is fair game.
  */
-export const indexPage = (origin: string, facts: Facts): string =>
+export const indexPage = (
+  origin: string,
+  facts: Facts,
+  nonce: string,
+): string =>
   shell(
     "PR Lens canvas server",
     `<main class="narrow">
@@ -421,6 +455,7 @@ server &mdash; so share view links freely and edit links carefully.</p>
 &middot; <a href="/healthz">healthz</a>
 </footer>
 </main>`,
+    nonce,
   );
 
 /**
@@ -430,8 +465,11 @@ server &mdash; so share view links freely and edit links carefully.</p>
  * Which means their page gets the stylesheet, the theme switcher and the reader's
  * remembered choice for free, and they write only the words.
  */
-export const markdownPage = (title: string, body: string): string =>
-  shell(title, `<main class="narrow prose">\n${body}</main>`);
+export const markdownPage = (
+  title: string,
+  body: string,
+  nonce: string,
+): string => shell(title, `<main class="narrow prose">\n${body}</main>`, nonce);
 
 const countText = (count: Facts["count"]): string => {
   if (count === undefined) return "&mdash;";

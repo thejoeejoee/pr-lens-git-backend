@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 
 import { CanvasService } from "./canvas.ts";
@@ -12,7 +13,7 @@ import {
   sendText,
 } from "./http.ts";
 import { customIndex, type CustomIndex } from "./markdown.ts";
-import { canvasPage, heroSvg, indexPage, markdownPage } from "./page.ts";
+import { canvasPage, heroSvg, indexPage, markdownPage, pageCsp } from "./page.ts";
 import { DrawingCache } from "./render/cache.ts";
 import { bearerToken } from "./secrets.ts";
 import { CachedStore } from "./store/cached.ts";
@@ -93,13 +94,21 @@ const route = async (
       draws: config.draw,
       count: await service.count(),
     };
+    const nonce = randomBytes(16).toString("base64");
     const html =
       index === undefined
-        ? indexPage(origin, facts)
+        ? indexPage(origin, facts, nonce)
         : await index
             .page(origin, facts)
-            .then(({ title, body }) => markdownPage(title, body));
-    sendText(res, 200, "text/html; charset=utf-8", html);
+            .then(({ title, body }) => markdownPage(title, body, nonce));
+    sendText(res, 200, "text/html; charset=utf-8", html, {
+      // A page somebody else wrote may name pictures anywhere; a page this
+      // server wrote has no business doing so.
+      "content-security-policy": pageCsp(
+        nonce,
+        index === undefined ? "self" : "anywhere",
+      ),
+    });
     return;
   }
 
@@ -204,7 +213,14 @@ const route = async (
       return;
     }
 
-    sendText(res, 200, "text/html; charset=utf-8", canvasPage(origin, held));
+    const nonce = randomBytes(16).toString("base64");
+    sendText(
+      res,
+      200,
+      "text/html; charset=utf-8",
+      canvasPage(origin, held, nonce),
+      { "content-security-policy": pageCsp(nonce, "self") },
+    );
     return;
   }
 

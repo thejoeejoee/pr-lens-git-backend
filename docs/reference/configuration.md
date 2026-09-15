@@ -69,11 +69,27 @@ Five placeholders are filled in, since whoever writes the file cannot know them:
 | `{{diagrams}}` | `drawn on push`, or `not drawn` when `DRAW=false`. |
 
 The page keeps this server's stylesheet, its theme switcher and the reader's
-remembered light/dark choice; you write only the words. GitHub-flavoured Markdown
-is what the file may hold — tables, fenced code, task lists — and raw HTML, which
-is passed through untouched. That last part is deliberate: whoever can mount this
-file can already set `GITLAB_TOKEN`, so there is nothing for an escaping rule to
-protect. It does mean a `<script>` in it runs on this origin.
+remembered light/dark choice; you write only the words.
+
+GitHub-flavoured Markdown is what the file may hold — tables, fenced code, task
+lists — and raw HTML for what Markdown has no syntax for, `<details>` and the
+like. What it may not hold is anything that executes:
+
+- `<script>`, `<iframe>`, `<object>`, `<embed>`, `<form>`, `<link>`, `<base>` and
+  `<meta>` are dropped, along with their contents
+- `onclick=` and every other event attribute is removed
+- a `javascript:` URL is removed, whether it arrived as HTML or as a Markdown
+  link
+
+and every page this server serves carries a `Content-Security-Policy` naming its
+own script by nonce, so nothing else runs even if something got past the first
+rule. Everything else is left exactly as written.
+
+That is deliberately stricter than "the operator could have set `GITLAB_TOKEN`
+anyway". A page one `kubectl edit` from anybody with access to the namespace is a
+tempting place to put a beacon in, and this way there is nothing to argue about.
+Pictures are not code, so the custom page may show images from anywhere; a page
+this server wrote itself is held to `img-src 'self'`.
 
 In the chart this is one value:
 

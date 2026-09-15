@@ -22,8 +22,8 @@ refused push changes nothing.
 
 | Route | Serves |
 | --- | --- |
-| `GET /` | An explanatory page, mostly one worked example: the variable that redirects the CLI and the PR Lens skill at this host instead of prlens.dev, what a push prints, and that links are the only permission. Carries the canvas count, so it is `no-store`. `INDEX_PAGE=false` turns it into a `NOT_FOUND`, and `INDEX_MARKDOWN_FILE` replaces it with a page of your own. |
-| `GET /c/{id}` | The canvas page: every tile, both themes, nothing off this origin. Follows the reader's system theme, with a light/dark/auto switcher top right that overrides it and is remembered in `localStorage` under `pr-lens-theme`; the index page honours the same choice. |
+| `GET /` | An explanatory page, mostly one worked example: the variable that redirects the CLI and the PR Lens skill at this host instead of prlens.dev, what a push prints, and that links are the only permission. Carries the canvas count, so it is `no-store`. `INDEX_PAGE=false` turns it into a `NOT_FOUND`, and `INDEX_MARKDOWN_FILE` replaces it with a page of your own — whose HTML may not execute anything. |
+| `GET /c/{id}` | The canvas page: every tile, both themes, nothing off this origin, under a `Content-Security-Policy` that runs only this server's own script. Follows the reader's system theme, with a light/dark/auto switcher top right that overrides it and is remembered in `localStorage` under `pr-lens-theme`; the index page honours the same choice. |
 | `GET /c/{id}.svg` | The hero as an SVG. `?theme=dark` for the other half. |
 | `GET /images/{id}/{name}-{hash}.svg` | One picture, addressed by its own hash. |
 | `GET /healthz` | Liveness. This process only. |

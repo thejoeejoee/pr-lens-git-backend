@@ -81,7 +81,8 @@ config:
 It becomes a ConfigMap mounted at `/etc/pr-lens/index.md`, and the server re-reads
 it when it changes — so `kubectl edit configmap <release>-index` is the whole
 deployment, with no rollout. `{{origin}}` and four other placeholders are filled
-in; [Configuration](../reference/configuration.md#your-own-page-at-) lists them.
+in; [Configuration](../reference/configuration.md#your-own-page-at-) lists them,
+and says which HTML that page may hold: everything except what executes.
 
 ## Probes
 
