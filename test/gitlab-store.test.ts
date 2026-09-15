@@ -50,6 +50,7 @@ describe("the GitLab store", () => {
   beforeEach(() => {
     gitlab.files.clear();
     gitlab.branchCollisions = 0;
+    gitlab.branchRefusals.length = 0;
     gitlab.throttles = 0;
     store = new GitLabStore(settings());
   });
@@ -116,9 +117,14 @@ describe("the GitLab store", () => {
     assert.equal(await store.read(ID), null);
   });
 
-  it("retries a commit that only lost the branch tip", async () => {
+  it("retries a commit that only lost the branch tip, in either wording", async () => {
     // Two other canvases were written at the same instant. Our own parent is
     // still good, so the same commit is worth sending again.
+    //
+    // The two refusals arrive worded differently: older GitLab writes its own
+    // sentence about refs/heads, newer GitLab passes Gitaly's error through. A
+    // 500 for the second one was the whole bug — the branch race is the same
+    // race whichever way it is spelt.
     gitlab.branchCollisions = 2;
     const before = gitlab.commits;
 
@@ -127,6 +133,13 @@ describe("the GitLab store", () => {
       gitlab.commits - before,
       1,
       "the retry committed once, not three times",
+    );
+    assert.equal(gitlab.branchRefusals.length, 2, "both wordings were served");
+    assert.ok(
+      gitlab.branchRefusals.some((refusal) =>
+        refusal.includes("reference does not point to expected object"),
+      ),
+      `Gitaly's wording was not among ${JSON.stringify(gitlab.branchRefusals)}`,
     );
   });
 

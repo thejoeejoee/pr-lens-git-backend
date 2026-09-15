@@ -31,9 +31,16 @@ import {
 /** GitLab's phrasing for "the blob moved under you". Matched, not parsed. */
 const FILE_CHANGED = /has changed since you started editing/i;
 const ALREADY_EXISTS = /already exists/i;
-/** Two commits raced for the branch tip; the file itself may be untouched. */
+/**
+ * Two commits raced for the branch tip; the file itself may be untouched.
+ *
+ * Two wordings, because GitLab has changed its mind about this one: older
+ * versions answer with the refs/heads sentence of their own, newer ones pass
+ * the Gitaly error through verbatim ("9:reference update: reference does not
+ * point to expected object."). Both mean the same thing here.
+ */
 const BRANCH_MOVED =
-  /could not update|stale|cannot be merged|reference update failed/i;
+  /could not update|stale|cannot be merged|reference update|does not point to expected object/i;
 const NO_BRANCH = /branch.*(not found|does not exist)|invalid branch/i;
 
 const BRANCH_RETRIES = 4;
