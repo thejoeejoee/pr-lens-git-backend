@@ -322,6 +322,317 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--edg
   border-radius: 8px;
   font-size: .95rem;
 }
+
+/* Interactive figure in document view */
+figure.interactive-figure {
+  position: relative;
+  cursor: zoom-in;
+  border-radius: 12px;
+  padding: .5rem;
+  margin-left: -.5rem;
+  margin-right: -.5rem;
+  transition: background .15s ease, box-shadow .15s ease;
+}
+figure.interactive-figure:hover {
+  background: var(--card);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+}
+figure.interactive-figure:hover img {
+  border-color: var(--accent);
+}
+figure.interactive-figure:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.figure-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  font-size: .75rem;
+  color: var(--dim);
+  margin-left: auto;
+  padding: .15rem .45rem;
+  background: var(--page);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+}
+
+/* Lightbox modal [Variant a] */
+dialog.lightbox {
+  position: fixed;
+  inset: 1.25rem;
+  width: calc(100vw - 2.5rem);
+  height: calc(100vh - 2.5rem);
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  background: var(--page);
+  color: var(--ink);
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.35);
+  overflow: hidden;
+  display: none;
+  flex-direction: column;
+  z-index: 100;
+}
+dialog.lightbox[open] {
+  display: flex;
+}
+dialog.lightbox::backdrop {
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+}
+.lightbox-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .65rem 1.25rem;
+  background: var(--card);
+  border-bottom: 1px solid var(--edge);
+  gap: 1rem;
+  flex-shrink: 0;
+  z-index: 2;
+}
+.lightbox-title-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: .6rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lightbox-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lightbox-meta {
+  font-size: .8rem;
+  color: var(--dim);
+  flex-shrink: 0;
+}
+.lightbox-nav {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-shrink: 0;
+}
+.lightbox-counter {
+  font-size: .8rem;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+  min-width: 4ch;
+  text-align: center;
+}
+.lightbox-actions {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-shrink: 0;
+}
+.btn-icon {
+  appearance: none;
+  border: 1px solid var(--edge);
+  background: var(--page);
+  color: var(--ink);
+  border-radius: 6px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font: inherit;
+  font-size: .875rem;
+  transition: background .1s, border-color .1s, color .1s;
+}
+.btn-icon:hover {
+  background: var(--card);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.btn-icon:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.lightbox-stage {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: var(--page);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.lightbox-stage.is-dragging {
+  cursor: grabbing;
+}
+.lightbox-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.lightbox-canvas img {
+  display: block;
+  max-width: none;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  pointer-events: none;
+}
+.zoom-pill {
+  position: absolute;
+  bottom: 1.25rem;
+  right: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .125rem;
+  padding: .1875rem;
+  background: var(--card);
+  border: 1px solid var(--edge);
+  border-radius: 999px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  z-index: 10;
+}
+.zoom-pill button {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+  padding: .35rem .65rem;
+  border-radius: 999px;
+  font: inherit;
+  font-size: .8rem;
+  font-weight: 500;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.zoom-pill button:hover {
+  background: var(--page);
+  color: var(--accent);
+}
+.zoom-pill button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Cheatsheet / Help Modal (?) */
+dialog.help-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  max-width: 380px;
+  width: 90vw;
+  height: fit-content;
+  padding: 0;
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+  overflow: hidden;
+  z-index: 200;
+}
+dialog.help-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+}
+.help-card {
+  padding: 1.25rem 1.5rem;
+}
+.help-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.1rem;
+}
+.help-title {
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+.help-grid {
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  font-size: .875rem;
+}
+.help-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.help-label {
+  color: var(--ink);
+}
+.help-action {
+  color: var(--dim);
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .8125rem;
+}
+.help-keys {
+  display: inline-flex;
+  gap: .3rem;
+  align-items: center;
+}
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 .35rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .75rem;
+  font-weight: 600;
+  background: var(--page);
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+  color: var(--ink);
+}
+.help-divider {
+  height: 1px;
+  background: var(--edge);
+  margin: .25rem 0;
+}
+.btn-help-trigger {
+  position: fixed;
+  top: .9rem;
+  right: calc(.9rem + 155px);
+  z-index: 1;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  background: var(--card);
+  color: var(--dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: .85rem;
+  font-weight: 600;
+  line-height: 1;
+}
+.btn-help-trigger:hover {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+@media (max-width: 30rem) {
+  .btn-help-trigger { top: .5rem; right: calc(.5rem + 130px); }
+  dialog.lightbox { inset: .5rem; width: calc(100vw - 1rem); height: calc(100vh - 1rem); }
+}
 </style>
 <script nonce="${nonce}">${THEME_BOOT}</script>
 </head>
@@ -388,6 +699,7 @@ export const heroSvg = (
 const tileFigure = (
   id: string,
   tile: Canvas["drawing"]["tiles"][number],
+  index: number,
 ): string => {
   const light = tile.files.light;
   const dark = tile.files.dark;
@@ -395,10 +707,14 @@ const tileFigure = (
 
   const trail = tile.crumbs.length > 1 ? tile.crumbs.join(" / ") : "";
 
-  return `<figure>
+  return `<figure class="interactive-figure" data-diagram-index="${index}" tabindex="0" role="button" aria-label="Open diagram ${escape(tile.title)} in interactive viewer">
   <figcaption>
     <h2>${escape(tile.title)}</h2>
     <p class="meta">${escape(tile.lens)}${trail === "" ? "" : ` &middot; ${escape(trail)}`}</p>
+    <span class="figure-hint" aria-hidden="true">
+      <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.5 4.5 0 1 0-9 0 4.5 4.5 0 0 0 9 0Z"/></svg>
+      <span>Interactive</span>
+    </span>
   </figcaption>
   <picture>
     ${dark === undefined ? "" : `<source srcset="${escape(imagePath(id, dark))}" media="(prefers-color-scheme: dark)" data-theme-dark>`}
@@ -406,6 +722,323 @@ const tileFigure = (
   </picture>
 </figure>`;
 };
+
+const LIGHTBOX_HTML = `<dialog class="lightbox" id="lightbox" aria-label="Diagram viewer">
+  <div class="lightbox-header">
+    <div class="lightbox-title-wrap">
+      <span class="lightbox-title" id="lightbox-title"></span>
+      <span class="lightbox-meta" id="lightbox-meta"></span>
+    </div>
+    <div class="lightbox-nav">
+      <button type="button" class="btn-icon" id="lb-prev" aria-label="Previous diagram (←)" title="Previous (←)">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M9.78 12.78a.75.75 0 0 1-1.06 0L4.47 8.53a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 1.06L6.06 8l3.72 3.72a.75.75 0 0 1 0 1.06Z"/></svg>
+      </button>
+      <span class="lightbox-counter" id="lb-counter">1 / 1</span>
+      <button type="button" class="btn-icon" id="lb-next" aria-label="Next diagram (→)" title="Next (→)">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/></svg>
+      </button>
+    </div>
+    <div class="lightbox-actions">
+      <button type="button" class="btn-icon" id="lb-help-btn" aria-label="Keyboard shortcuts (?)" title="Keyboard shortcuts (?)">?</button>
+      <button type="button" class="btn-icon" id="lb-close" aria-label="Close dialog (Esc)" title="Close (Esc)">✕</button>
+    </div>
+  </div>
+  <div class="lightbox-stage" id="lightbox-stage">
+    <div class="lightbox-canvas" id="lightbox-canvas"></div>
+  </div>
+  <div class="zoom-pill" id="lb-zoom-pill" role="toolbar" aria-label="Zoom controls">
+    <button type="button" id="lb-zoom-out" title="Zoom out (-)" aria-label="Zoom out">−</button>
+    <button type="button" id="lb-zoom-reset" title="Zoom to 100% (0)" aria-label="Reset zoom to 100%">100%</button>
+    <button type="button" id="lb-zoom-in" title="Zoom in (+)" aria-label="Zoom in">+</button>
+    <button type="button" id="lb-zoom-fit" title="Fit to screen (1)" aria-label="Fit diagram">Fit</button>
+  </div>
+</dialog>`;
+
+const HELP_DIALOG_HTML = `<dialog class="help-dialog" id="help-dialog" aria-label="Keyboard shortcuts and gestures">
+  <div class="help-card">
+    <div class="help-header">
+      <span class="help-title">Shortcuts &amp; Gestures</span>
+      <button type="button" class="btn-icon" id="help-close" aria-label="Close cheatsheet">✕</button>
+    </div>
+    <div class="help-grid">
+      <div class="help-row">
+        <span class="help-label">Zoom</span>
+        <span class="help-action">scroll or pinch</span>
+      </div>
+      <div class="help-row">
+        <span class="help-label">Pan</span>
+        <span class="help-action">drag</span>
+      </div>
+      <div class="help-row">
+        <span class="help-label">Zoom to a diagram</span>
+        <span class="help-action">click caption or card</span>
+      </div>
+      <div class="help-row">
+        <span class="help-label">Previous, next diagram</span>
+        <span class="help-keys"><kbd>←</kbd> <kbd>→</kbd></span>
+      </div>
+      <div class="help-row">
+        <span class="help-label">Fit diagram</span>
+        <span class="help-keys"><kbd>1</kbd></span>
+      </div>
+      <div class="help-row">
+        <span class="help-label">Zoom 100%</span>
+        <span class="help-keys"><kbd>0</kbd></span>
+      </div>
+      <div class="help-row">
+        <span class="help-label">Close modal</span>
+        <span class="help-keys"><kbd>Esc</kbd></span>
+      </div>
+    </div>
+  </div>
+</dialog>`;
+
+const LIGHTBOX_WIRING = `(function(){
+var dataTag = document.getElementById("pr-lens-tiles");
+if (!dataTag) return;
+var tiles = JSON.parse(dataTag.textContent || "[]");
+if (!tiles.length) return;
+
+var lb = document.getElementById("lightbox");
+var stage = document.getElementById("lightbox-stage");
+var canvasEl = document.getElementById("lightbox-canvas");
+var titleEl = document.getElementById("lightbox-title");
+var metaEl = document.getElementById("lightbox-meta");
+var counterEl = document.getElementById("lb-counter");
+var btnPrev = document.getElementById("lb-prev");
+var btnNext = document.getElementById("lb-next");
+var btnClose = document.getElementById("lb-close");
+var btnHelp = document.getElementById("lb-help-btn");
+var helpDialog = document.getElementById("help-dialog");
+var helpClose = document.getElementById("help-close");
+var pageHelpBtn = document.getElementById("page-help-btn");
+var zoomIn = document.getElementById("lb-zoom-in");
+var zoomOut = document.getElementById("lb-zoom-out");
+var zoomReset = document.getElementById("lb-zoom-reset");
+var zoomFit = document.getElementById("lb-zoom-fit");
+
+var currentIndex = 0;
+var transform = { x: 0, y: 0, scale: 1.0 };
+var lastActiveElement = null;
+
+function applyTransform() {
+  canvasEl.style.transform = "translate(" + Math.round(transform.x) + "px, " + Math.round(transform.y) + "px) scale(" + transform.scale + ")";
+  if (zoomReset) {
+    zoomReset.textContent = Math.round(transform.scale * 100) + "%";
+  }
+}
+
+function fitDiagram() {
+  if (!tiles[currentIndex]) return;
+  var stageW = stage.clientWidth;
+  var stageH = stage.clientHeight;
+  var tile = tiles[currentIndex];
+  var pad = 32;
+  var availW = Math.max(100, stageW - pad * 2);
+  var availH = Math.max(100, stageH - pad * 2);
+  var fitScale = Math.min(availW / tile.width, availH / tile.height, 1.5);
+  transform.scale = fitScale;
+  transform.x = (stageW - tile.width * fitScale) / 2;
+  transform.y = (stageH - tile.height * fitScale) / 2;
+  applyTransform();
+}
+
+function reset100() {
+  if (!tiles[currentIndex]) return;
+  var stageW = stage.clientWidth;
+  var stageH = stage.clientHeight;
+  var tile = tiles[currentIndex];
+  transform.scale = 1.0;
+  transform.x = (stageW - tile.width) / 2;
+  transform.y = (stageH - tile.height) / 2;
+  applyTransform();
+}
+
+function zoomAt(newScale, cx, cy) {
+  newScale = Math.min(Math.max(newScale, 0.05), 5.0);
+  var ratio = newScale / transform.scale;
+  transform.x = cx - (cx - transform.x) * ratio;
+  transform.y = cy - (cy - transform.y) * ratio;
+  transform.scale = newScale;
+  applyTransform();
+}
+
+function showDiagram(index) {
+  if (index < 0) index = tiles.length - 1;
+  if (index >= tiles.length) index = 0;
+  currentIndex = index;
+  var tile = tiles[currentIndex];
+
+  titleEl.textContent = tile.title;
+  var trail = tile.crumbs.length > 1 ? tile.crumbs.join(" / ") : "";
+  metaEl.textContent = tile.lens + (trail ? " · " + trail : "");
+  counterEl.textContent = (currentIndex + 1) + " / " + tiles.length;
+
+  var theme = document.documentElement.dataset.theme;
+  var media = theme === "dark" ? "all" : theme === "light" ? "not all" : "(prefers-color-scheme: dark)";
+  var sourceHtml = tile.files.dark ? '<source srcset="' + tile.files.dark + '" media="' + media + '" data-theme-dark>' : '';
+  canvasEl.innerHTML = '<picture>' + sourceHtml + '<img src="' + tile.files.light + '" width="' + tile.width + '" height="' + tile.height + '" alt="' + tile.title + '" draggable="false"></picture>';
+
+  requestAnimationFrame(function() {
+    fitDiagram();
+  });
+}
+
+function openLightbox(index) {
+  lastActiveElement = document.activeElement;
+  lb.showModal();
+  showDiagram(index);
+}
+
+function closeLightbox() {
+  if (lb.open) lb.close();
+  if (lastActiveElement && typeof lastActiveElement.focus === "function") {
+    lastActiveElement.focus();
+  }
+}
+
+lb.addEventListener("close", function() {
+  if (lastActiveElement && typeof lastActiveElement.focus === "function") {
+    lastActiveElement.focus();
+  }
+});
+
+lb.addEventListener("click", function(e) {
+  if (e.target === lb) closeLightbox();
+});
+
+var figures = document.querySelectorAll("figure.interactive-figure");
+for (var f = 0; f < figures.length; f++) {
+  (function(fig) {
+    fig.addEventListener("click", function() {
+      var idx = parseInt(fig.dataset.diagramIndex, 10);
+      if (!isNaN(idx)) openLightbox(idx);
+    });
+    fig.addEventListener("keydown", function(e) {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        var idx = parseInt(fig.dataset.diagramIndex, 10);
+        if (!isNaN(idx)) openLightbox(idx);
+      }
+    });
+  })(figures[f]);
+}
+
+if (btnPrev) btnPrev.addEventListener("click", function() { showDiagram(currentIndex - 1); });
+if (btnNext) btnNext.addEventListener("click", function() { showDiagram(currentIndex + 1); });
+if (btnClose) btnClose.addEventListener("click", closeLightbox);
+if (btnHelp) btnHelp.addEventListener("click", function() { if (helpDialog) helpDialog.showModal(); });
+if (pageHelpBtn) pageHelpBtn.addEventListener("click", function() { if (helpDialog) helpDialog.showModal(); });
+
+if (helpClose) helpClose.addEventListener("click", function() { if (helpDialog) helpDialog.close(); });
+if (helpDialog) helpDialog.addEventListener("click", function(e) { if (e.target === helpDialog) helpDialog.close(); });
+
+if (zoomIn) zoomIn.addEventListener("click", function() { zoomAt(transform.scale * 1.25, stage.clientWidth / 2, stage.clientHeight / 2); });
+if (zoomOut) zoomOut.addEventListener("click", function() { zoomAt(transform.scale / 1.25, stage.clientWidth / 2, stage.clientHeight / 2); });
+if (zoomReset) zoomReset.addEventListener("click", reset100);
+if (zoomFit) zoomFit.addEventListener("click", fitDiagram);
+
+var activePointers = new Map();
+var initialDist = 0;
+var initialScale = 1;
+var isDragging = false;
+var dragStart = { x: 0, y: 0 };
+var startPos = { x: 0, y: 0 };
+
+stage.addEventListener("pointerdown", function(e) {
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (activePointers.size === 1 && e.button === 0) {
+    isDragging = true;
+    dragStart = { x: e.clientX, y: e.clientY };
+    startPos = { x: transform.x, y: transform.y };
+    stage.setPointerCapture(e.pointerId);
+    stage.classList.add("is-dragging");
+  } else if (activePointers.size === 2) {
+    isDragging = false;
+    stage.classList.remove("is-dragging");
+    var pts = Array.from(activePointers.values());
+    initialDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    initialScale = transform.scale;
+  }
+});
+
+stage.addEventListener("pointermove", function(e) {
+  if (activePointers.has(e.pointerId)) {
+    activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  }
+  if (activePointers.size === 2 && initialDist > 0) {
+    var pts = Array.from(activePointers.values());
+    var currentDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    var rect = stage.getBoundingClientRect();
+    var midX = (pts[0].x + pts[1].x) / 2 - rect.left;
+    var midY = (pts[0].y + pts[1].y) / 2 - rect.top;
+    var newScale = initialScale * (currentDist / initialDist);
+    zoomAt(newScale, midX, midY);
+  } else if (isDragging && activePointers.size === 1) {
+    transform.x = startPos.x + (e.clientX - dragStart.x);
+    transform.y = startPos.y + (e.clientY - dragStart.y);
+    applyTransform();
+  }
+});
+
+function removePointer(e) {
+  activePointers.delete(e.pointerId);
+  if (activePointers.size < 2) initialDist = 0;
+  if (activePointers.size === 0) {
+    isDragging = false;
+    stage.classList.remove("is-dragging");
+    try { stage.releasePointerCapture(e.pointerId); } catch(err) {}
+  }
+}
+stage.addEventListener("pointerup", removePointer);
+stage.addEventListener("pointercancel", removePointer);
+
+stage.addEventListener("wheel", function(e) {
+  e.preventDefault();
+  var rect = stage.getBoundingClientRect();
+  var cx = e.clientX - rect.left;
+  var cy = e.clientY - rect.top;
+  var factor = e.ctrlKey ? Math.exp(-e.deltaY * 0.01) : (e.deltaY < 0 ? 1.15 : 1 / 1.15);
+  zoomAt(transform.scale * factor, cx, cy);
+}, { passive: false });
+
+window.addEventListener("resize", function() {
+  if (lb.open) fitDiagram();
+});
+
+window.addEventListener("keydown", function(e) {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  if (e.key === "?" || (e.shiftKey && e.key === "?")) {
+    e.preventDefault();
+    if (helpDialog) {
+      if (helpDialog.open) helpDialog.close();
+      else helpDialog.showModal();
+    }
+    return;
+  }
+  if (lb.open) {
+    if (e.key === "ArrowLeft") {
+      e.preventDefault();
+      showDiagram(currentIndex - 1);
+    } else if (e.key === "ArrowRight") {
+      e.preventDefault();
+      showDiagram(currentIndex + 1);
+    } else if (e.key === "+" || e.key === "=") {
+      e.preventDefault();
+      zoomAt(transform.scale * 1.25, stage.clientWidth / 2, stage.clientHeight / 2);
+    } else if (e.key === "-" || e.key === "_") {
+      e.preventDefault();
+      zoomAt(transform.scale / 1.25, stage.clientWidth / 2, stage.clientHeight / 2);
+    } else if (e.key === "0") {
+      e.preventDefault();
+      reset100();
+    } else if (e.key === "1") {
+      e.preventDefault();
+      fitDiagram();
+    }
+  }
+});
+})();`;
 
 export type ProvenanceInfo = {
   mrTitle: string;
@@ -498,7 +1131,24 @@ export const canvasPage = (
             ? ", because this server cannot read its schema version"
             : ""
         }.</p>`
-      : tiles.map((tile) => tileFigure(canvas.id, tile)).join("\n");
+      : tiles.map((tile, idx) => tileFigure(canvas.id, tile, idx)).join("\n");
+
+  const tilesData = tiles.map((tile, idx) => ({
+    index: idx,
+    id: tile.id,
+    title: tile.title,
+    lens: tile.lens,
+    crumbs: tile.crumbs,
+    width: tile.width,
+    height: tile.height,
+    hero: !!tile.hero,
+    files: {
+      light: tile.files.light ? imagePath(canvas.id, tile.files.light) : undefined,
+      dark: tile.files.dark ? imagePath(canvas.id, tile.files.dark) : undefined,
+    },
+  }));
+
+  const tilesJson = JSON.stringify(tilesData).replace(/</g, "\\u003c");
 
   return shell(
     mrTitle,
@@ -509,7 +1159,12 @@ ${provenanceBadge(row2Content)}
 ${summary === undefined ? "" : `<p class="lede">${escape(summary)}</p>`}
 <p class="rev">Revision ${canvas.rev} &middot; ${tiles.length} diagram${tiles.length === 1 ? "" : "s"}</p>
 ${body}
-</main>`,
+</main>
+<button type="button" class="btn-help-trigger" id="page-help-btn" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts (?)">?</button>
+${LIGHTBOX_HTML}
+${HELP_DIALOG_HTML}
+<script id="pr-lens-tiles" type="application/json">${tilesJson}</script>
+<script nonce="${nonce}">${LIGHTBOX_WIRING}</script>`,
     nonce,
   );
 };

@@ -635,6 +635,46 @@ describe("the pages and the pictures", () => {
     assert.match(imgResponse.headers.get("content-type") ?? "", /image\/svg\+xml/);
     assert.match(await imgResponse.text(), /^<svg/);
   });
+
+  it("renders interactive figures with diagram indices and interactive badges", async () => {
+    const html = await (await fetch(`${harness.url}/c/${id}`)).text();
+    assert.match(html, /class="interactive-figure"/);
+    assert.match(html, /data-diagram-index="0"/);
+    assert.match(html, /class="figure-hint"/);
+  });
+
+  it("serves the lightbox dialog, pan-zoom controls, and cheatsheet help modal", async () => {
+    const html = await (await fetch(`${harness.url}/c/${id}`)).text();
+
+    // Lightbox modal markup
+    assert.match(html, /<dialog class="lightbox" id="lightbox"/);
+    assert.match(html, /id="lightbox-stage"/);
+    assert.match(html, /id="lightbox-canvas"/);
+    assert.match(html, /id="lb-zoom-pill"/);
+    assert.match(html, /id="lb-prev"/);
+    assert.match(html, /id="lb-next"/);
+    assert.match(html, /id="lb-close"/);
+
+    // Help cheatsheet dialog markup
+    assert.match(html, /<dialog class="help-dialog" id="help-dialog"/);
+    assert.match(html, /Shortcuts &amp; Gestures/);
+    assert.match(html, /scroll or pinch/);
+    assert.match(html, /drag/);
+    assert.match(html, /<kbd>←<\/kbd>\s*<kbd>→<\/kbd>/);
+    assert.match(html, /<kbd>1<\/kbd>/);
+    assert.match(html, /<kbd>0<\/kbd>/);
+    assert.match(html, /<kbd>Esc<\/kbd>/);
+
+    // Embedded diagram tiles data script
+    assert.match(html, /<script id="pr-lens-tiles" type="application\/json"/);
+
+    // Nonced client wiring with pointer, wheel, and keyboard listeners
+    assert.match(html, /setPointerCapture/);
+    assert.match(html, /addEventListener\("wheel"/);
+    assert.match(html, /addEventListener\("keydown"/);
+    assert.match(html, /ArrowLeft/);
+    assert.match(html, /ArrowRight/);
+  });
 });
 
 describe("the index page", () => {
