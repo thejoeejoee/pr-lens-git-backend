@@ -6,7 +6,8 @@ on:
   pull_request:
   workflow_dispatch:
 
-# Nothing here writes anywhere.
+# Nothing here writes to the repository. One job posts a pull request comment
+# and asks for that permission itself; everything else is read-only.
 permissions:
   contents: read
 
@@ -167,3 +168,24 @@ jobs:
             echo "the chart should have insisted on config.git.remote" >&2
             exit 1
           fi
+
+  judge-commits:
+    name: commits (judged, never enforced)
+    runs-on: ubuntu-latest
+    # Needs a secret, and a secret is only there for a branch pushed to this
+    # repository -- a fork's token cannot read one. Dependabot's is scoped to
+    # itself, and a dependency bump is not worth a judgement either way.
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.actor != 'dependabot[bot]'
+    permissions:
+      contents: read
+      pull-requests: write # it edits its own comment rather than adding another
+    steps:
+      - uses: actions/checkout@v7
+      - uses: thejoeejoee/git-judge-commits@v0.3.1
+        with:
+          api-key: ${{ secrets.TYPESAFE_API_KEY }}
+          # Generated, and big enough to crowd the real diff out of the budget.
+          exclude: package-lock.json,docs/assets/*.svg
