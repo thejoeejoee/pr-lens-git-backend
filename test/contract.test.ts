@@ -559,12 +559,16 @@ describe("the pages and the pictures", () => {
     }
   });
 
-  it("renders streamlined provenance metadata in document mode", async () => {
+  it("renders streamlined provenance metadata in document and canvas modes", async () => {
     const html = await (await fetch(`${harness.url}/c/${id}`)).text();
     assert.match(html, /<h1>Send broadcasts in batches of 500<\/h1>/);
     assert.match(html, /class="provenance"/);
     assert.match(html, /ohansemmanuel\/bestregards #128/);
     assert.match(html, /https:\/\/github\.com\/ohansemmanuel\/bestregards\/pull\/128/);
+    assert.match(html, /class="canvas-header-card"/);
+    assert.match(html, /class="canvas-header-title"[^>]*>Send broadcasts in batches of 500<\/div>/);
+    assert.match(html, /class="canvas-header-meta"[^>]*>Revision 1 &middot; \d+ diagrams<\/span>/);
+    assert.match(html, /<p class="rev">Revision 1 &middot; \d+ diagrams<\/p>/);
   });
 
   it("gracefully falls back when provenance information is partially missing", () => {
@@ -610,6 +614,7 @@ describe("the pages and the pictures", () => {
     const singleHtml = await (await fetch(`${harness.url}/demo?sample=single`)).text();
     assert.match(singleHtml, /Revision 1 &middot; 1 diagram/);
     assert.match(singleHtml, /Multi-Host Ingress Architecture/);
+    assert.match(singleHtml, /thejoeejoee\/pr-lens-git-backend/);
   });
 
   it("serves /demo.svg with etag and 304 revalidation", async () => {
@@ -674,6 +679,39 @@ describe("the pages and the pictures", () => {
     assert.match(html, /addEventListener\("keydown"/);
     assert.match(html, /ArrowLeft/);
     assert.match(html, /ArrowRight/);
+  });
+
+  it("carries view mode switcher and boots with zero layout shift", async () => {
+    const html = await (await fetch(`${harness.url}/c/${id}`)).text();
+
+    // Mode switcher buttons
+    assert.match(html, /data-mode-choice="document"/);
+    assert.match(html, /data-mode-choice="canvas"/);
+
+    // Boot script in <head> checks both theme and view-mode
+    const head = html.slice(0, html.indexOf("</head>"));
+    assert.match(head, /localStorage\.getItem\("pr-lens-view-mode"\)/);
+    assert.match(head, /dataset\.viewMode/);
+  });
+
+  it("serves the interactive canvas workspace with dock and caption pill", async () => {
+    const html = await (await fetch(`${harness.url}/c/${id}`)).text();
+
+    assert.match(html, /id="canvas-workspace"/);
+    assert.match(html, /id="canvas-stage"/);
+    assert.match(html, /id="canvas-diagram-container"/);
+    assert.match(html, /id="canvas-caption-pill"/);
+    assert.match(html, /id="canvas-dock"/);
+    assert.match(html, /class="dock-item/);
+    assert.match(html, /id="canvas-zoom-pill"/);
+  });
+
+  it("renders responsive picture elements with intrinsic dimensions for vector sharpness", async () => {
+    const html = await (await fetch(`${harness.url}/c/${id}`)).text();
+
+    assert.match(html, /id="canvas-diagram-body"[^>]*>[\s\S]*?<picture>/);
+    assert.match(html, /<img src="\/images\/[^"]+" width="\d+" height="\d+"/);
+    assert.match(html, /media="\(prefers-color-scheme: dark\)"/);
   });
 });
 
