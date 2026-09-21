@@ -250,6 +250,78 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--edg
   :root[data-js] .themes { top: .5rem; right: .5rem; }
   .themes button { padding: .3rem .55rem; font-size: .75rem; }
 }
+
+/* Provenance metadata */
+.provenance {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: center;
+  margin: .35rem 0 .75rem;
+  font-size: .875rem;
+  line-height: 1.3;
+}
+.provenance .canvas-header-link {
+  font-size: .875rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--dim);
+  text-decoration: none;
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.provenance .canvas-header-link:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* Demo mode banner */
+.demo-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .75rem;
+  padding: .65rem 1rem;
+  margin-bottom: 1.75rem;
+  background: var(--card);
+  border: 1px solid var(--edge);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  font-size: .875rem;
+}
+.demo-switch {
+  display: inline-flex;
+  gap: .25rem;
+  background: var(--page);
+  padding: .15rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+}
+.demo-tab {
+  padding: .25rem .6rem;
+  color: var(--dim);
+  text-decoration: none;
+  border-radius: 4px;
+  font-size: .8rem;
+}
+.demo-tab:hover { color: var(--ink); }
+.demo-tab.active {
+  background: var(--card);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+.demo-lead {
+  margin: 1.25rem 0 1.5rem;
+  padding: .75rem 1rem;
+  background: var(--card);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  font-size: .95rem;
+}
 </style>
 <script nonce="${nonce}">${THEME_BOOT}</script>
 </head>
@@ -335,11 +407,89 @@ const tileFigure = (
 </figure>`;
 };
 
+export type ProvenanceInfo = {
+  mrTitle: string;
+  row2Content: string;
+};
+
+export const resolveProvenanceInfo = (
+  canvasId: string,
+  title: string,
+  provenance?: any,
+): ProvenanceInfo => {
+  // Row 1: full MR title
+  const mrTitle = provenance?.pullRequest?.title || title || canvasId;
+
+  // Row 2: link to MR as owner/projekt #mr (with basic fallbacks if info is missing)
+  const repo = provenance?.repo?.owner && provenance?.repo?.name
+    ? `${provenance.repo.owner}/${provenance.repo.name}`
+    : undefined;
+  const pr = provenance?.pullRequest;
+  const branch = provenance?.head?.ref;
+
+  let row2Content = "";
+  if (repo && pr?.number) {
+    const text = `${repo} #${pr.number}`;
+    row2Content = pr.url
+      ? `<a class="canvas-header-link" href="${escape(pr.url)}" target="_blank" rel="noopener noreferrer" title="${escape(mrTitle)}">${escape(text)}</a>`
+      : `<span class="canvas-header-link">${escape(text)}</span>`;
+  } else if (repo && branch) {
+    row2Content = `<span class="canvas-header-link">${escape(repo)} (${escape(branch)})</span>`;
+  } else if (repo) {
+    row2Content = `<span class="canvas-header-link">${escape(repo)}</span>`;
+  } else if (pr?.number) {
+    const text = `#${pr.number}`;
+    row2Content = pr.url
+      ? `<a class="canvas-header-link" href="${escape(pr.url)}" target="_blank" rel="noopener noreferrer" title="${escape(mrTitle)}">${escape(text)}</a>`
+      : `<span class="canvas-header-link">${escape(text)}</span>`;
+  } else if (branch) {
+    row2Content = `<span class="canvas-header-link">${escape(branch)}</span>`;
+  }
+
+  return { mrTitle, row2Content };
+};
+
+const provenanceBadge = (
+  row2Content: string,
+): string => {
+  if (!row2Content) return "";
+
+  return `<div class="provenance" aria-label="Provenance">
+  ${row2Content}
+</div>`;
+};
+
+export type CanvasPageOptions = {
+  demoSample?: string;
+};
+
 /** No origin: every address on this page is a path, and resolves against the reader's own. */
-export const canvasPage = (canvas: Canvas, nonce: string): string => {
+export const canvasPage = (
+  canvas: Canvas,
+  nonce: string,
+  options?: CanvasPageOptions,
+): string => {
   const title = canvas.document?.title ?? canvas.id;
   const summary = canvas.document?.summary;
   const tiles = canvas.drawing.tiles;
+  const provenance = canvas.document?.provenance;
+
+  const { mrTitle, row2Content } = resolveProvenanceInfo(
+    canvas.id,
+    title,
+    provenance,
+  );
+
+  const demoBanner =
+    options?.demoSample === undefined
+      ? ""
+      : `<div class="demo-banner">
+  <div>💡 <strong>Demo mode:</strong> Synthetic architectures based on PR #17.</div>
+  <div class="demo-switch" role="tablist" aria-label="Demo architecture samples">
+    <a href="/demo?sample=single" class="demo-tab${options.demoSample === "single" ? " active" : ""}">Single Diagram (1)</a>
+    <a href="/demo?sample=multi" class="demo-tab${options.demoSample === "multi" ? " active" : ""}">Multi Diagram (6)</a>
+  </div>
+</div>`;
 
   const body =
     tiles.length === 0
@@ -351,9 +501,11 @@ export const canvasPage = (canvas: Canvas, nonce: string): string => {
       : tiles.map((tile) => tileFigure(canvas.id, tile)).join("\n");
 
   return shell(
-    title,
+    mrTitle,
     `<main>
-<h1>${escape(title)}</h1>
+${demoBanner}
+<h1>${escape(mrTitle)}</h1>
+${provenanceBadge(row2Content)}
 ${summary === undefined ? "" : `<p class="lede">${escape(summary)}</p>`}
 <p class="rev">Revision ${canvas.rev} &middot; ${tiles.length} diagram${tiles.length === 1 ? "" : "s"}</p>
 ${body}
@@ -397,6 +549,7 @@ export const indexPage = (
 canvases: a diagram of a change, pushed from your machine, kept as a document and
 served back as pictures. It speaks version 1 of the canvas API, so nothing you
 push here is sent to prlens.dev.</p>
+<p class="demo-lead">👉 <strong><a href="/demo">Try the interactive demo</a></strong> with sample architectures &mdash; no setup or git repository required.</p>
 
 <h3>Send your diagrams here instead of prlens.dev</h3>
 <p>The CLI and the PR Lens agent skill both default to prlens.dev. One variable

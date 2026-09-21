@@ -7,6 +7,7 @@ import { after, before, describe, it } from "node:test";
 import { payloadGraph } from "@coldtea/pr-lens-schema/examples";
 
 import { call, start, type Harness } from "./harness.ts";
+import { resolveProvenanceInfo } from "../src/page.ts";
 
 /**
  * The canvas contract, walked end to end the way the CLI walks it.
@@ -430,10 +431,13 @@ describe("the pages and the pictures", () => {
 
     assert.equal(response.status, 200);
     assert.match(response.headers.get("content-type") ?? "", /text\/html/);
-    assert.match(html, /<h1>/);
-    // Nothing off this origin: the only script is inline, with no src to fetch.
+    // Nothing off this origin: the only script is inline, with no src to fetch,
+    // and no assets (images, stylesheets, fonts) are loaded from elsewhere.
     assert.doesNotMatch(html, /<script[^>]*\ssrc=/i);
-    assert.doesNotMatch(html, /https?:\/\/(?!127\.0\.0\.1)/);
+    assert.doesNotMatch(
+      html,
+      /<(?:script|img|link|source)[^>]+https?:\/\/(?!127\.0\.0\.1)/i,
+    );
   });
 
   it("carries the theme switcher, and the state it needs to survive a reload", async () => {
@@ -554,6 +558,83 @@ describe("the pages and the pictures", () => {
       assert.equal(response.headers.get("cache-control"), "no-store", path);
     }
   });
+
+  it("renders streamlined provenance metadata in document mode", async () => {
+    const html = await (await fetch(`${harness.url}/c/${id}`)).text();
+    assert.match(html, /<h1>Send broadcasts in batches of 500<\/h1>/);
+    assert.match(html, /class="provenance"/);
+    assert.match(html, /ohansemmanuel\/bestregards #128/);
+    assert.match(html, /https:\/\/github\.com\/ohansemmanuel\/bestregards\/pull\/128/);
+  });
+
+  it("gracefully falls back when provenance information is partially missing", () => {
+    const withBranch = resolveProvenanceInfo("c-1", "Default Title", {
+      repo: { owner: "acme", name: "widgets" },
+      head: { ref: "fix-bug" },
+    });
+    assert.equal(withBranch.mrTitle, "Default Title");
+    assert.match(withBranch.row2Content, /acme\/widgets \(fix-bug\)/);
+
+    const withRepoOnly = resolveProvenanceInfo("c-2", "Default Title", {
+      repo: { owner: "acme", name: "widgets" },
+    });
+    assert.match(withRepoOnly.row2Content, /acme\/widgets/);
+
+    const withPrOnly = resolveProvenanceInfo("c-3", "Default Title", {
+      pullRequest: { number: 42, url: "https://example.com/pr/42" },
+    });
+    assert.match(withPrOnly.row2Content, /#42/);
+
+    const withBranchOnly = resolveProvenanceInfo("c-4", "Default Title", {
+      head: { ref: "main" },
+    });
+    assert.match(withBranchOnly.row2Content, /main/);
+  });
+
+  it("serves the demo page at /demo with sample architectures and sample switcher", async () => {
+    const response = await fetch(`${harness.url}/demo`);
+    assert.equal(response.status, 200);
+    const html = await response.text();
+
+    assert.match(html, /class="demo-banner"/);
+    assert.match(html, /<h1>feat\(helm\): let the ingress answer on more than one host<\/h1>/);
+    assert.match(html, /thejoeejoee\/pr-lens-git-backend #17/);
+    assert.match(html, /https:\/\/github\.com\/thejoeejoee\/pr-lens-git-backend\/pull\/17/);
+    assert.match(html, /href="\/demo\?sample=single"/);
+    assert.match(html, /href="\/demo\?sample=multi"/);
+
+    // Default is multi (6 diagrams)
+    assert.match(html, /Revision 1 &middot; 6 diagrams/);
+
+    // Switch to single diagram sample (1 diagram)
+    const singleHtml = await (await fetch(`${harness.url}/demo?sample=single`)).text();
+    assert.match(singleHtml, /Revision 1 &middot; 1 diagram/);
+    assert.match(singleHtml, /Multi-Host Ingress Architecture/);
+  });
+
+  it("serves /demo.svg with etag and 304 revalidation", async () => {
+    const response = await fetch(`${harness.url}/demo.svg`);
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get("content-type") ?? "", /image\/svg\+xml/);
+    const etag = response.headers.get("etag");
+    assert.ok(etag !== null);
+
+    const reval = await fetch(`${harness.url}/demo.svg`, {
+      headers: { "if-none-match": etag },
+    });
+    assert.equal(reval.status, 304);
+  });
+
+  it("serves demo content-addressed pictures", async () => {
+    const demoHtml = await (await fetch(`${harness.url}/demo`)).text();
+    const match = /src="(\/images\/demo-multi\/[^"]+)"/.exec(demoHtml);
+    assert.ok(match !== null, "demo page contains image reference");
+
+    const imgResponse = await fetch(`${harness.url}${match[1]}`);
+    assert.equal(imgResponse.status, 200);
+    assert.match(imgResponse.headers.get("content-type") ?? "", /image\/svg\+xml/);
+    assert.match(await imgResponse.text(), /^<svg/);
+  });
 });
 
 describe("the index page", () => {
@@ -667,6 +748,12 @@ describe("the index page", () => {
     } finally {
       await quiet.close();
     }
+  });
+
+  it("includes a link to /demo", async () => {
+    const html = await (await fetch(harness.url + "/")).text();
+    assert.match(html, /href="\/demo"/);
+    assert.match(html, /Try the interactive demo/);
   });
 });
 
