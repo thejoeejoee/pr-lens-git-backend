@@ -33,7 +33,7 @@ spec:
       terminationGracePeriodSeconds: 60
       containers:
         - name: server
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          image: {{ include "pr-lens-git-backend.image" . | quote }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext: {{- toYaml .Values.securityContext | nindent 12 }}
           ports:
