@@ -4,6 +4,29 @@ Kept by [release-please](https://github.com/googleapis/release-please) from the
 conventional-commit subjects on `main`. Everything below 0.3.0 was written by
 hand, because the two releases before it predate that setup.
 
+## [0.7.0](https://github.com/thejoeejoee/pr-lens-git-backend/compare/v0.6.0...v0.7.0) (2026-09-24)
+
+
+### Features
+
+* **chart:** allow parent charts to override server image ([51739f2](https://github.com/thejoeejoee/pr-lens-git-backend/commit/51739f274de3393a5014e43434a65658c69fb8b4))
+* **chart:** allow parent charts to override server image ([3d018d6](https://github.com/thejoeejoee/pr-lens-git-backend/commit/3d018d627591a18276140bd389e6eece9bd44967))
+
+
+### Bug Fixes
+
+* **deps:** bump @coldtea/pr-lens-renderer from 0.2.5 to 0.2.6 ([192a478](https://github.com/thejoeejoee/pr-lens-git-backend/commit/192a478e00e84cf05790b71aef761c3abed7d3f8))
+* **deps:** bump @coldtea/pr-lens-renderer from 0.2.5 to 0.2.6 ([dd2f716](https://github.com/thejoeejoee/pr-lens-git-backend/commit/dd2f716a6525e18d2aa9dc2f6578414e906f70e5))
+* **deps:** bump @coldtea/pr-lens-schema from 0.3.0 to 0.4.0 ([97a9428](https://github.com/thejoeejoee/pr-lens-git-backend/commit/97a9428e58a2a07d477a7c90aaf2440b2a03c0c7))
+* **deps:** bump @coldtea/pr-lens-schema from 0.3.0 to 0.4.0 ([f7e16d4](https://github.com/thejoeejoee/pr-lens-git-backend/commit/f7e16d440c574813bb4cf8823b77aa89b70f4138))
+* **deps:** bump node from 24-alpine3.22 to 26-alpine3.22 ([19e6feb](https://github.com/thejoeejoee/pr-lens-git-backend/commit/19e6febee06c2036748696d18d2b9d0024922703))
+
+
+### Documentation
+
+* **releasing:** say that a new package name needs one publish by hand ([32f3e9d](https://github.com/thejoeejoee/pr-lens-git-backend/commit/32f3e9d017c795eb5fd58848bd96753b2cfd0859))
+* **releasing:** say that a new package name needs one publish by hand ([c0170b8](https://github.com/thejoeejoee/pr-lens-git-backend/commit/c0170b8354629c2bdc081e7692e76fb78bab316b))
+
 ## [0.6.0](https://github.com/thejoeejoee/pr-lens-git-backend/compare/v0.5.0...v0.6.0) (2026-09-15)
 
 
