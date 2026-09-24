@@ -29,6 +29,11 @@ be worse than failing, since two suffixes would come back as the same name.
 {{- printf "%s-%s" (include "pr-lens-git-backend.fullname" .root | trunc $room | trimSuffix "-") .suffix -}}
 {{- end -}}
 
+{{/* Override this helper in a parent chart to supply a deployment-specific image. */}}
+{{- define "pr-lens-git-backend.image" -}}
+{{- printf "%s:%s" .Values.image.repository (.Values.image.tag | default .Chart.AppVersion) -}}
+{{- end -}}
+
 {{- define "pr-lens-git-backend.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
