@@ -115,11 +115,126 @@ if(group)group.addEventListener("keydown",function(event){
 })();`;
 
 /**
+ * The lightbox, which exists because a diagram at the width of a reading column
+ * is a diagram you cannot read. Clicking one opens it in a dialog that is nearly
+ * the whole window, and clicking it again doubles it and lets you drag it about.
+ *
+ * A `<dialog>` and `showModal()`, so the modal parts nobody enjoys writing —
+ * trapping focus, Escape, the backdrop, returning focus on close — are the
+ * browser's. A browser without it is left with the page it already had: the
+ * script marks nothing clickable unless `showModal` is really there.
+ *
+ * The tile is *cloned* into the dialog rather than moved, so the page behind
+ * stays whole, and the clone keeps `data-theme-dark` on its `<source>` — the
+ * attribute the switcher rewrites. So a render opens in the theme the page is
+ * already in, chosen or inherited, and follows the system's if that turns over
+ * while the dialog is open.
+ *
+ * Zooming is one step, twice the size the fit worked out to, measured rather
+ * than assumed: which axis the fit was constrained by depends on the render and
+ * the window, and doubling the wrong one is how a phone ends up showing less.
+ */
+const LIGHTBOX = `<dialog class="lightbox" data-lightbox aria-labelledby="lightbox-title">
+  <div class="lightbox-bar">
+    <p class="lightbox-title" id="lightbox-title" data-lightbox-title></p>
+    <button type="button" data-lightbox-zoom aria-pressed="false">Zoom in</button>
+    <button type="button" data-lightbox-close autofocus>Close</button>
+  </div>
+  <div class="lightbox-stage" data-lightbox-stage data-zoom="out"></div>
+</dialog>`;
+
+const LIGHTBOX_WIRING = `(function(){
+var dialog=document.querySelector("[data-lightbox]");
+if(!dialog||typeof dialog.showModal!=="function")return;
+var stage=dialog.querySelector("[data-lightbox-stage]");
+var label=dialog.querySelector("[data-lightbox-title]");
+var zoom=dialog.querySelector("[data-lightbox-zoom]");
+var opener=null;
+function setZoom(on){
+  var image=stage.querySelector("img");
+  if(on&&image)image.style.width=Math.round(image.getBoundingClientRect().width*2)+"px";
+  else if(image)image.style.width="";
+  stage.dataset.zoom=on?"in":"out";
+  zoom.setAttribute("aria-pressed",String(on));
+  zoom.textContent=on?"Fit":"Zoom in";
+  if(on){
+    stage.scrollLeft=(stage.scrollWidth-stage.clientWidth)/2;
+    stage.scrollTop=(stage.scrollHeight-stage.clientHeight)/2;
+  }
+}
+function open(figure){
+  var picture=figure.querySelector("picture");
+  if(!picture)return;
+  var heading=figure.querySelector("h2");
+  var copy=picture.cloneNode(true);
+  var image=copy.querySelector("img");
+  if(image)image.loading="eager";
+  opener=picture;
+  stage.replaceChildren(copy);
+  label.textContent=heading?heading.textContent:"";
+  setZoom(false);
+  dialog.showModal();
+}
+var figures=document.querySelectorAll("main figure");
+for(var i=0;i<figures.length;i++)(function(figure){
+  var picture=figure.querySelector("picture");
+  if(!picture)return;
+  var heading=figure.querySelector("h2");
+  picture.dataset.zoomable="";
+  picture.tabIndex=0;
+  picture.setAttribute("role","button");
+  picture.setAttribute("aria-label",(heading?heading.textContent+", ":"")+"view full screen");
+  picture.addEventListener("click",function(){open(figure);});
+  picture.addEventListener("keydown",function(event){
+    if(event.key!=="Enter"&&event.key!==" ")return;
+    event.preventDefault();
+    open(figure);
+  });
+})(figures[i]);
+dialog.querySelector("[data-lightbox-close]").addEventListener("click",function(){dialog.close();});
+zoom.addEventListener("click",function(){setZoom(stage.dataset.zoom!=="in");});
+dialog.addEventListener("click",function(event){if(event.target===dialog)dialog.close();});
+dialog.addEventListener("close",function(){
+  stage.replaceChildren();
+  if(opener)opener.focus();
+});
+var drag=null;
+var moved=false;
+stage.addEventListener("click",function(event){
+  if(moved)return;
+  if(event.target.tagName==="IMG")setZoom(stage.dataset.zoom!=="in");
+  else dialog.close();
+});
+stage.addEventListener("pointerdown",function(event){
+  moved=false;
+  if(event.pointerType!=="mouse"||event.button!==0||stage.dataset.zoom!=="in")return;
+  drag={x:event.clientX,y:event.clientY,left:stage.scrollLeft,top:stage.scrollTop};
+  stage.setPointerCapture(event.pointerId);
+});
+stage.addEventListener("pointermove",function(event){
+  if(!drag)return;
+  var dx=event.clientX-drag.x,dy=event.clientY-drag.y;
+  if(Math.abs(dx)>3||Math.abs(dy)>3)moved=true;
+  stage.scrollLeft=drag.left-dx;
+  stage.scrollTop=drag.top-dy;
+});
+function release(){drag=null;}
+stage.addEventListener("pointerup",release);
+stage.addEventListener("pointercancel",release);
+})();`;
+
+/**
  * One stylesheet, inline, for both pages. Inline because a second request for a
  * stylesheet is a second thing to cache, invalidate and get wrong, and this is
  * two kilobytes.
  */
-const shell = (title: string, body: string, nonce: string): string => `<!doctype html>
+const shell = (
+  title: string,
+  body: string,
+  nonce: string,
+  /** A page's own script, run after the theme is settled. The canvas page's lightbox is the only one. */
+  script = "",
+): string => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -250,6 +365,85 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--edg
   :root[data-js] .themes { top: .5rem; right: .5rem; }
   .themes button { padding: .3rem .55rem; font-size: .75rem; }
 }
+
+/*
+ * The lightbox. The attribute is put on by the script once it knows the dialog
+ * will open, so a picture only looks clickable where clicking it does something.
+ */
+picture[data-zoomable] { cursor: zoom-in; border-radius: 10px; }
+picture[data-zoomable]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/*
+ * A layout mode only while open: a dialog is hidden by display: none until then,
+ * and setting one unconditionally would leave the closed dialog on the page as a
+ * visible block at its foot.
+ */
+.lightbox { padding: 0; border: 0; background: none; max-width: none; max-height: none; }
+.lightbox[open] {
+  display: flex;
+  flex-direction: column;
+  width: 96vw;
+  height: 94vh;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.lightbox::backdrop { background: rgb(8 8 12 / .74); }
+.lightbox-bar {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .5rem .5rem .5rem 1rem;
+  border-bottom: 1px solid var(--edge);
+}
+.lightbox-title {
+  flex: 1; min-width: 0; margin: 0;
+  font-size: .9rem; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lightbox-bar button {
+  appearance: none; cursor: pointer;
+  border: 1px solid var(--edge); background: none; color: var(--dim);
+  padding: .3rem .75rem; border-radius: 999px;
+  font: inherit; font-size: .8rem; line-height: 1.2;
+}
+.lightbox-bar button:hover { color: var(--ink); }
+.lightbox-bar button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.lightbox-bar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/*
+ * The stage is the scroller, and the picture steps out of the way with
+ * display: contents so the render itself is the flex item — which is what makes
+ * max-height: 100% mean the stage, and lets an auto margin centre it without
+ * ever putting its top left corner out of reach once it overflows.
+ */
+.lightbox-stage { flex: 1; min-height: 0; display: flex; overflow: auto; padding: 1rem; background: var(--page); }
+.lightbox-stage picture { display: contents; }
+.lightbox-stage img {
+  margin: auto;
+  /* Never shrunk to fit: below, a doubled width is a request the flex box must honour. */
+  flex: none;
+  width: auto; height: auto;
+  max-width: 100%; max-height: 100%;
+  border: 0; border-radius: 6px;
+  cursor: zoom-in;
+}
+/* The width itself is an inline style the script works out; this is the rest. */
+.lightbox-stage[data-zoom="in"] img {
+  height: auto;
+  max-width: none; max-height: none;
+  cursor: zoom-out;
+}
+@media (max-width: 40rem) {
+  .lightbox[open] { width: 100vw; height: 100dvh; border: 0; border-radius: 0; }
+  .lightbox-stage { padding: .5rem; }
+  /*
+   * On a phone, fitting a wide diagram into a narrow window leaves it too small
+   * to read at all. So the fit here is by height, and the width is the reader's
+   * to swipe along.
+   */
+  .lightbox-stage[data-zoom="out"] img { max-width: none; }
+}
 </style>
 <script nonce="${nonce}">${THEME_BOOT}</script>
 </head>
@@ -257,6 +451,7 @@ footer { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid var(--edg
 ${THEMES}
 ${body}
 <script nonce="${nonce}">${THEME_WIRING}</script>
+${script === "" ? "" : `<script nonce="${nonce}">${script}</script>`}
 </body>
 </html>
 `;
@@ -357,8 +552,10 @@ export const canvasPage = (canvas: Canvas, nonce: string): string => {
 ${summary === undefined ? "" : `<p class="lede">${escape(summary)}</p>`}
 <p class="rev">Revision ${canvas.rev} &middot; ${tiles.length} diagram${tiles.length === 1 ? "" : "s"}</p>
 ${body}
-</main>`,
+</main>
+${tiles.length === 0 ? "" : LIGHTBOX}`,
     nonce,
+    tiles.length === 0 ? "" : LIGHTBOX_WIRING,
   );
 };
 
