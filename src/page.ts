@@ -1,4 +1,5 @@
 import type { Canvas } from "./canvas.ts";
+import { clickableElements, hotspotsOf } from "./elements.ts";
 import { imagePath } from "./urls.ts";
 import { VERSION } from "./version.ts";
 
@@ -1052,6 +1053,176 @@ kbd {
   .btn-icon { width: 28px; height: 28px; }
   #lightbox .zoom-pill { bottom: .75rem; right: .75rem; }
 }
+
+/*
+ * Click targets over a diagram. The frame shrink-wraps the picture, so a target
+ * placed in percentages of the frame lands on the element it stands for at any
+ * zoom, with no arithmetic in the script.
+ */
+.hs-frame { position: relative; display: inline-block; line-height: 0; }
+.hs-layer { position: absolute; inset: 0; }
+.hs {
+  position: absolute;
+  margin: 0; padding: 0; border: 0;
+  background: transparent;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.hs-edge { border-radius: 4px; }
+.hs-edge:hover, .hs-edge:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hs-edge.is-selected {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+/*
+ * A block on hover or when selected keeps everything it shows: only its colours
+ * change. The picture is inline, so its own card takes the change colour, the
+ * icon and text turn white, and the tag, drawn last, stays on top untouched.
+ */
+.hs-frame > svg { display: block; pointer-events: none; }
+.canvas-diagram-body .hs-frame > svg {
+  border-radius: 12px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+.cardsh[data-delta="added"] { --hs-colour: #1f883d; }
+.cardsh[data-delta="modified"] { --hs-colour: #9a6700; }
+.cardsh[data-delta="removed"] { --hs-colour: #cf222e; }
+.cardsh[data-delta="unchanged"] { --hs-colour: #59636e; }
+.cardsh.hot { opacity: 1; }
+.cardsh.hot > .card { fill: var(--hs-colour); stroke: var(--hs-colour); stroke-opacity: 1; }
+.cardsh.hot > .chip { fill: rgba(255, 255, 255, 0.2); }
+.cardsh.hot .glyph, .cardsh.hot > .ntitle, .cardsh.hot > .nsub { fill: #ffffff; }
+.cardsh.selected { filter: drop-shadow(0 0 4px var(--hs-colour)); }
+/* Dark tags are see-through, so on a coloured card the tag gets a solid pill. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .cardsh.hot .bdg rect { fill: #ffffff; stroke: transparent; }
+  :root:not([data-theme="light"]) .cardsh.hot .bdg text { fill: var(--hs-colour); }
+}
+:root[data-theme="dark"] .cardsh.hot .bdg rect { fill: #ffffff; stroke: transparent; }
+:root[data-theme="dark"] .cardsh.hot .bdg text { fill: var(--hs-colour); }
+.hs-node:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.el-panel {
+  position: fixed;
+  top: 1rem; right: 1rem; bottom: 1rem;
+  z-index: 1000;
+  width: min(680px, calc(100vw - 2rem));
+  overflow: auto;
+  padding: 1rem 1.1rem;
+  background: var(--card);
+  color: var(--ink);
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+}
+.el-panel[hidden] { display: none; }
+.el-panel-head { display: flex; align-items: flex-start; gap: .6rem; }
+.el-panel-heading { flex: 1; min-width: 0; }
+.el-panel-type { display: block; color: var(--dim); font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; }
+.el-panel-title { margin: .1rem 0; font-size: 1.05rem; overflow-wrap: anywhere; }
+.el-panel-sub { color: var(--dim); font-size: .8rem; }
+.el-delta {
+  flex: none;
+  padding: .1rem .5rem;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 600;
+  border: 1px solid currentColor;
+}
+.el-delta[data-delta="added"] { color: #2da44e; }
+.el-delta[data-delta="modified"] { color: #d29922; }
+.el-delta[data-delta="removed"] { color: #e5534b; }
+.el-delta[data-delta="unchanged"] { color: var(--dim); }
+.el-panel-summary { margin: .8rem 0 0; font-size: .9rem; }
+.el-panel-summary:empty { display: none; }
+.el-panel-label { margin: 1.1rem 0 .4rem; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); }
+.el-panel-files { list-style: none; margin: 0; padding: 0; font-size: .85rem; }
+.el-panel-files li { padding: .35rem 0; border-top: 1px solid var(--edge); overflow-wrap: anywhere; }
+.el-panel-files .lines { color: var(--dim); }
+.el-panel-note { margin: 0 0 .4rem; color: var(--dim); font-size: .85rem; }
+.el-panel-note:empty { display: none; }
+.el-panel-viewer { margin: .9rem 0 0; color: var(--dim); font-size: .78rem; }
+.el-panel-viewer:empty { display: none; }
+.link-button {
+  margin: 0; padding: 0; border: 0; background: none;
+  color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline;
+}
+.file-bar { display: flex; align-items: center; gap: .8rem; margin: .35rem 0; font-size: .78rem; }
+.file-status { color: var(--dim); text-transform: uppercase; letter-spacing: .05em; }
+.file-status[data-status="added"] { color: #2da44e; }
+.file-status[data-status="removed"] { color: #e5534b; }
+.file-status[data-status="modified"], .file-status[data-status="renamed"] { color: #d29922; }
+.file-note { margin: .3rem 0; color: var(--dim); font-size: .8rem; }
+/*
+ * The diff, in GitHub's own colours: its light and dark diff palettes, and the
+ * github-light / github-dark syntax themes the server highlighted with. Each
+ * token carries both colours as variables; the theme decides which one shows.
+ */
+.diff {
+  --diff-bg: #ffffff;
+  --diff-fg: #1f2328;
+  --diff-ln: #59636e;
+  --diff-add-bg: #dafbe1;
+  --diff-add-gutter: #aceebb;
+  --diff-del-bg: #ffebe9;
+  --diff-del-gutter: #ffcecb;
+  --diff-hunk-bg: #ddf4ff;
+  --diff-hunk-fg: #59636e;
+  overflow: auto;
+  max-height: 55vh;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: var(--diff-bg);
+  color: var(--diff-fg);
+  font: 12px/20px ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .diff {
+    --diff-bg: #0d1117;
+    --diff-fg: #e6edf3;
+    --diff-ln: #9198a1;
+    --diff-add-bg: rgba(46, 160, 67, 0.15);
+    --diff-add-gutter: rgba(63, 185, 80, 0.3);
+    --diff-del-bg: rgba(248, 81, 73, 0.1);
+    --diff-del-gutter: rgba(248, 81, 73, 0.3);
+    --diff-hunk-bg: rgba(56, 139, 253, 0.1);
+    --diff-hunk-fg: #9198a1;
+  }
+  :root:not([data-theme="light"]) .diff .code span { color: var(--shd, inherit); }
+}
+:root[data-theme="dark"] .diff {
+  --diff-bg: #0d1117;
+  --diff-fg: #e6edf3;
+  --diff-ln: #9198a1;
+  --diff-add-bg: rgba(46, 160, 67, 0.15);
+  --diff-add-gutter: rgba(63, 185, 80, 0.3);
+  --diff-del-bg: rgba(248, 81, 73, 0.1);
+  --diff-del-gutter: rgba(248, 81, 73, 0.3);
+  --diff-hunk-bg: rgba(56, 139, 253, 0.1);
+  --diff-hunk-fg: #9198a1;
+}
+.diff .dh { padding: 0 .6rem; color: var(--diff-hunk-fg); background: var(--diff-hunk-bg); }
+.diff .dl { display: flex; white-space: pre; min-width: max-content; }
+.diff .ln {
+  flex: none; width: 3.4em; padding: 0 .5em;
+  text-align: right; color: var(--diff-ln); user-select: none;
+}
+.diff .sign { flex: none; width: 1.4em; padding-left: .3em; user-select: none; }
+.diff .code { flex: 1; padding-right: .8em; }
+.diff .code span { color: var(--shl, inherit); }
+:root[data-theme="dark"] .diff .code span { color: var(--shd, inherit); }
+.diff .dl-add { background: var(--diff-add-bg); }
+.diff .dl-add .ln { background: var(--diff-add-gutter); }
+.diff .dl-del { background: var(--diff-del-bg); }
+.diff .dl-del .ln { background: var(--diff-del-gutter); }
+.diff .tk-i { font-style: italic; }
+.diff .tk-b { font-weight: 600; }
+.diff .tk-u { text-decoration: underline; }
+@media (max-width: 640px) {
+  .el-panel { top: auto; left: .5rem; right: .5rem; bottom: .5rem; width: auto; max-height: 60vh; }
+}
 </style>
 <script nonce="${nonce}">${THEME_BOOT}</script>
 </head>
@@ -1087,6 +1258,8 @@ export const pageCsp = (nonce: string, images: "self" | "anywhere"): string =>
     images === "self" ? "img-src 'self'" : "img-src * data:",
     "style-src 'unsafe-inline'",
     `script-src 'nonce-${nonce}'`,
+    // The diff panel asks this server for code; nothing else is reachable.
+    "connect-src 'self'",
     "base-uri 'none'",
     "form-action 'none'",
   ].join("; ");
@@ -1242,6 +1415,29 @@ const HELP_DIALOG_HTML = `<dialog class="help-dialog" id="help-dialog" aria-labe
     </div>
   </div>
 </dialog>`;
+
+/**
+ * The side panel a click on a diagram element opens. Empty here: the script
+ * fills it from the element map, as text, so nothing from a document is ever
+ * parsed as HTML. It moves into the lightbox while the lightbox is open,
+ * because a modal dialog leaves everything outside it inert.
+ */
+const ELEMENT_PANEL_HTML = `<aside class="el-panel" id="el-panel" hidden aria-labelledby="el-panel-title">
+  <div class="el-panel-head">
+    <div class="el-panel-heading">
+      <span class="el-panel-type" id="el-panel-type"></span>
+      <h2 class="el-panel-title" id="el-panel-title"></h2>
+      <span class="el-panel-sub" id="el-panel-sub"></span>
+    </div>
+    <span class="el-delta" id="el-panel-delta"></span>
+    <button type="button" class="btn-icon" id="el-panel-close" aria-label="Close panel (Esc)" title="Close (Esc)">✕</button>
+  </div>
+  <p class="el-panel-summary" id="el-panel-summary"></p>
+  <h3 class="el-panel-label">Changes</h3>
+  <p class="el-panel-note" id="el-panel-note"></p>
+  <ul class="el-panel-files" id="el-panel-files"></ul>
+  <p class="el-panel-viewer" id="el-panel-viewer"></p>
+</aside>`;
 
 export type ProvenanceInfo = {
   mrTitle: string;
@@ -1437,7 +1633,9 @@ function applyLbTransform() {
   }
 }
 
-function wirePanZoom(stageEl, getTransform, applyFn) {
+// onTap(target) fires for a press and release that barely moved and never became
+// a pinch: the one place that tells a click on a diagram from a pan.
+function wirePanZoom(stageEl, getTransform, applyFn, onTap) {
   if (!stageEl) return null;
   var current = getTransform();
   var target = { x: current.x, y: current.y, scale: current.scale };
@@ -1526,6 +1724,7 @@ function wirePanZoom(stageEl, getTransform, applyFn) {
   var isDragging = false;
   var dragStart = { x: 0, y: 0 };
   var startPos = { x: 0, y: 0 };
+  var tapTarget = null;
 
   stageEl.addEventListener("pointerdown", function(e) {
     if (cvContainer) cvContainer.classList.remove("animate-transform");
@@ -1539,9 +1738,11 @@ function wirePanZoom(stageEl, getTransform, applyFn) {
       isDragging = true;
       dragStart = { x: e.clientX, y: e.clientY };
       startPos = { x: current.x, y: current.y };
+      tapTarget = e.target;
       stageEl.setPointerCapture(e.pointerId);
       stageEl.classList.add("is-dragging");
     } else if (activePointers.size === 2) {
+      tapTarget = null;
       isDragging = false;
       stageEl.classList.remove("is-dragging");
       var pts = Array.from(activePointers.values());
@@ -1580,6 +1781,7 @@ function wirePanZoom(stageEl, getTransform, applyFn) {
 
   function removePointer(e) {
     activePointers.delete(e.pointerId);
+    if (activePointers.size === 0) tapTarget = null;
     if (activePointers.size < 2) initialDist = 0;
     if (activePointers.size === 0) {
       isDragging = false;
@@ -1587,7 +1789,11 @@ function wirePanZoom(stageEl, getTransform, applyFn) {
       try { stageEl.releasePointerCapture(e.pointerId); } catch(err) {}
     }
   }
-  stageEl.addEventListener("pointerup", removePointer);
+  stageEl.addEventListener("pointerup", function(e) {
+    var target = tapTarget;
+    if (activePointers.size === 1 && target && onTap && Math.hypot(e.clientX - dragStart.x, e.clientY - dragStart.y) < 5) onTap(target);
+    removePointer(e);
+  });
   stageEl.addEventListener("pointercancel", removePointer);
 
   stageEl.addEventListener("wheel", function(e) {
@@ -1660,7 +1866,7 @@ function wirePanZoom(stageEl, getTransform, applyFn) {
   };
 }
 
-var lbCtrl = wirePanZoom(lbStage, function() { return lbTransform; }, applyLbTransform);
+var lbCtrl = wirePanZoom(lbStage, function() { return lbTransform; }, applyLbTransform, tapElement);
 
 function fitLbDiagram(multiplier, instant) {
   var tile = tiles[lbIndex];
@@ -1692,6 +1898,486 @@ function renderTilePicture(tile) {
   return '<picture>' + sourceHtml + '<img src="' + tile.files.light + '" width="' + tile.width + '" height="' + tile.height + '" alt="' + tile.title + '" draggable="false"></picture>';
 }
 
+var elements = parsed.elements || {};
+var hotspots = parsed.hotspots || [];
+var panel = document.getElementById("el-panel");
+var panelType = document.getElementById("el-panel-type");
+var panelTitle = document.getElementById("el-panel-title");
+var panelSub = document.getElementById("el-panel-sub");
+var panelDelta = document.getElementById("el-panel-delta");
+var panelSummary = document.getElementById("el-panel-summary");
+var panelFiles = document.getElementById("el-panel-files");
+var panelClose = document.getElementById("el-panel-close");
+var panelNote = document.getElementById("el-panel-note");
+var panelViewer = document.getElementById("el-panel-viewer");
+var canvasId = parsed.canvasId;
+var selectedKey = null;
+var selectedButtons = [];
+var fileBodies = [];
+var diffRequest = 0;
+
+// Wraps the host's picture in a frame and lays one button per element over it,
+// placed in percentages so the targets follow every pan and zoom for free.
+function attachHotspots(host, index) {
+  var spots = hotspots[index];
+  if (!host || !spots || !spots.length) return;
+  var picture = host.querySelector("picture");
+  if (!picture) return;
+  var frame = document.createElement("div");
+  frame.className = "hs-frame";
+  picture.parentNode.insertBefore(frame, picture);
+  frame.appendChild(picture);
+  var layer = document.createElement("div");
+  layer.className = "hs-layer";
+  for (var i = 0; i < spots.length; i++) {
+    var spot = spots[i];
+    var el = elements[spot.key];
+    if (!el) continue;
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "hs hs-" + el.element;
+    if (spot.key === selectedKey) {
+      button.classList.add("is-selected");
+      selectedButtons.push(button);
+    }
+    button.dataset.el = spot.key;
+    button.title = el.label;
+    button.setAttribute("aria-label", "Show changes for " + el.label);
+    button.style.left = (spot.x * 100) + "%";
+    button.style.top = (spot.y * 100) + "%";
+    button.style.width = (spot.w * 100) + "%";
+    button.style.height = (spot.h * 100) + "%";
+    layer.appendChild(button);
+  }
+  frame.appendChild(layer);
+  inlinePicture(frame, index);
+}
+
+// The picture as inline SVG, so a block can be recoloured in place. Until it
+// arrives the <img> stays, so nothing flickers; a failed fetch keeps the <img>.
+var svgTexts = {};
+function svgText(url) {
+  if (!svgTexts[url]) {
+    svgTexts[url] = fetch(url, { credentials: "same-origin" }).then(function(response) {
+      if (!response.ok) throw new Error("picture " + response.status);
+      return response.text();
+    });
+    svgTexts[url].catch(function() { delete svgTexts[url]; });
+  }
+  return svgTexts[url];
+}
+
+function isDark() {
+  var theme = document.documentElement.dataset.theme;
+  if (theme === "dark") return true;
+  if (theme === "light") return false;
+  return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+function inlinePicture(frame, index) {
+  var tile = tiles[index];
+  var url = isDark() && tile.files.dark ? tile.files.dark : tile.files.light;
+  frame.dataset.tile = String(index);
+  frame.dataset.src = url;
+  svgText(url).then(function(text) {
+    if (frame.dataset.src !== url || !frame.isConnected) return;
+    var parsed = new DOMParser().parseFromString(text, "image/svg+xml").documentElement;
+    if (!parsed || parsed.nodeName.toLowerCase() !== "svg") return;
+    // The renderer draws no script; drop any all the same.
+    var risky = parsed.querySelectorAll("script, foreignObject");
+    for (var r = 0; r < risky.length; r++) risky[r].remove();
+    var svg = document.importNode(parsed, true);
+    svg.setAttribute("width", String(tile.width));
+    svg.setAttribute("height", String(tile.height));
+    svg.setAttribute("aria-label", tile.title);
+    svg.setAttribute("role", "img");
+    var old = frame.querySelector("picture, svg");
+    if (old) frame.replaceChild(svg, old);
+    linkCards(frame, svg, index);
+    markSelected();
+  }, function() {});
+}
+
+// Each block's card is the rect whose box is exactly the atlas box; its group
+// is what gets recoloured. Keys go on the group so hover and selection find it.
+function linkCards(frame, svg, index) {
+  var tile = tiles[index];
+  var cards = svg.querySelectorAll(".cardsh > .card");
+  var spots = hotspots[index] || [];
+  for (var i = 0; i < spots.length; i++) {
+    var spot = spots[i];
+    var el = elements[spot.key];
+    if (!el || el.element !== "node") continue;
+    var x = spot.x * tile.width, y = spot.y * tile.height, w = spot.w * tile.width, h = spot.h * tile.height;
+    for (var c = 0; c < cards.length; c++) {
+      var card = cards[c];
+      var shift = shiftOf(card, svg);
+      if (Math.abs(card.getAttribute("x") - x + shift.x) < 0.5 && Math.abs(card.getAttribute("y") - y + shift.y) < 0.5 &&
+          Math.abs(card.getAttribute("width") - w) < 0.5 && Math.abs(card.getAttribute("height") - h) < 0.5) {
+        card.parentNode.dataset.el = spot.key;
+        card.parentNode.dataset.delta = el.delta;
+        break;
+      }
+    }
+  }
+}
+
+// The atlas is in the picture's own units, but a card may sit inside groups
+// moved by translate(): a flow is drawn inside one. Their sum is the card's shift.
+function shiftOf(node, root) {
+  var shift = { x: 0, y: 0 };
+  for (var at = node.parentNode; at && at !== root; at = at.parentNode) {
+    // Parsed by hand: this script lives in a template string, where a regex's
+    // backslashes would not survive.
+    var transform = (at.getAttribute && at.getAttribute("transform")) || "";
+    var open = transform.indexOf("translate(");
+    if (open !== -1) {
+      var parts = transform.slice(open + 10, transform.indexOf(")", open)).trim().split(/[ ,]+/);
+      shift.x += Number(parts[0]) || 0;
+      shift.y += Number(parts[1]) || 0;
+    }
+  }
+  return shift;
+}
+
+function cardsFor(key, scope) {
+  var found = [];
+  var groups = (scope || document).querySelectorAll(".cardsh[data-el]");
+  for (var g = 0; g < groups.length; g++) if (groups[g].dataset.el === key) found.push(groups[g]);
+  return found;
+}
+
+function heat(button, on) {
+  var frame = button.closest(".hs-frame");
+  var cards = cardsFor(button.dataset.el, frame);
+  for (var i = 0; i < cards.length; i++) cards[i].classList.toggle("hot", on || button.dataset.el === selectedKey);
+}
+
+document.addEventListener("pointerover", function(e) {
+  var spot = e.target.closest ? e.target.closest(".hs-node") : null;
+  if (spot) heat(spot, true);
+});
+document.addEventListener("pointerout", function(e) {
+  var spot = e.target.closest ? e.target.closest(".hs-node") : null;
+  if (spot) heat(spot, false);
+});
+document.addEventListener("focusin", function(e) {
+  if (e.target.classList && e.target.classList.contains("hs-node")) heat(e.target, true);
+});
+document.addEventListener("focusout", function(e) {
+  if (e.target.classList && e.target.classList.contains("hs-node")) heat(e.target, false);
+});
+
+// A theme switch swaps every inlined picture for its other half, in place.
+function reinline() {
+  var frames = document.querySelectorAll(".hs-frame[data-tile]");
+  for (var f = 0; f < frames.length; f++) inlinePicture(frames[f], parseInt(frames[f].dataset.tile, 10));
+}
+new MutationObserver(reinline).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+if (window.matchMedia) {
+  var darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  if (darkQuery.addEventListener) darkQuery.addEventListener("change", reinline);
+}
+
+function markSelected() {
+  for (var i = 0; i < selectedButtons.length; i++) selectedButtons[i].classList.remove("is-selected");
+  selectedButtons = [];
+  var lit = document.querySelectorAll(".cardsh.selected");
+  for (var k = 0; k < lit.length; k++) lit[k].classList.remove("selected", "hot");
+  if (!selectedKey) return;
+  var cards = cardsFor(selectedKey);
+  for (var m = 0; m < cards.length; m++) cards[m].classList.add("selected", "hot");
+  var all = document.querySelectorAll(".hs");
+  for (var j = 0; j < all.length; j++) {
+    if (all[j].dataset.el !== selectedKey) continue;
+    all[j].classList.add("is-selected");
+    selectedButtons.push(all[j]);
+  }
+}
+
+function openPanel(key) {
+  var el = elements[key];
+  if (!el || !panel) return;
+  selectedKey = key;
+  markSelected();
+
+  panelType.textContent = el.element === "edge" ? "Connection · " + el.type : "Component · " + el.type;
+  panelTitle.textContent = el.label;
+  panelSub.textContent = el.element === "edge" ? el.from + " → " + el.to : "";
+  panelDelta.textContent = el.delta;
+  panelDelta.dataset.delta = el.delta;
+  panelSummary.textContent = el.summary || "";
+
+  panelFiles.textContent = "";
+  panelViewer.textContent = "";
+  setNote("");
+  fileBodies = [];
+  if (!el.files.length) setNote("No code is linked to this element.");
+  for (var i = 0; i < el.files.length; i++) {
+    var file = el.files[i];
+    var item = document.createElement("li");
+    var head = document.createElement("div");
+    head.className = "file-head";
+    var path = document.createElement("code");
+    path.textContent = file.path;
+    head.appendChild(path);
+    if (file.startLine) {
+      // A real space, so a copied path and its range do not run together.
+      head.appendChild(document.createTextNode(" "));
+      var lines = document.createElement("span");
+      lines.className = "lines";
+      lines.textContent = rangeOf(file);
+      head.appendChild(lines);
+    }
+    item.appendChild(head);
+    var body = document.createElement("div");
+    body.className = "file-body";
+    item.appendChild(body);
+    fileBodies.push(body);
+    panelFiles.appendChild(item);
+  }
+
+  // A modal dialog makes everything outside it inert, so the panel goes where the reader is.
+  var host = lb && lb.open ? lb : document.body;
+  if (panel.parentNode !== host) host.appendChild(panel);
+  panel.hidden = false;
+
+  if (el.files.length) loadDiff(key);
+}
+
+function rangeOf(file) {
+  return file.startLine ? "L" + file.startLine + (file.endLine && file.endLine !== file.startLine ? "–" + file.endLine : "") : "";
+}
+
+function setNote(text, link) {
+  panelNote.textContent = text;
+  if (link) {
+    var anchor = document.createElement("a");
+    anchor.href = link.href;
+    anchor.textContent = link.text;
+    panelNote.appendChild(document.createTextNode(" "));
+    panelNote.appendChild(anchor);
+  }
+}
+
+function getDiff(key, full) {
+  var url = "/c/" + encodeURIComponent(canvasId) + "/diff?el=" + encodeURIComponent(key) + (full ? "&full=" + encodeURIComponent(full) : "");
+  return fetch(url, { credentials: "same-origin", headers: { accept: "application/json" } }).then(function(response) {
+    return response.json().catch(function() {
+      return { state: "unavailable", reason: "This server answered " + response.status + "." };
+    });
+  });
+}
+
+// Each request is numbered, so an answer that arrives after the reader moved
+// on to another element is dropped rather than painted over the new one.
+function loadDiff(key) {
+  var mine = ++diffRequest;
+  setNote("Loading the changes…");
+  getDiff(key).then(function(answer) {
+    if (mine !== diffRequest || selectedKey !== key) return;
+    showDiff(key, answer);
+  }, function() {
+    if (mine === diffRequest) setNote("The changes could not be loaded.");
+  });
+}
+
+function showViewer(viewer) {
+  panelViewer.textContent = "";
+  if (!viewer) return;
+  panelViewer.appendChild(document.createTextNode("Signed in to GitHub as @" + viewer + " · "));
+  var out = document.createElement("button");
+  out.type = "button";
+  out.className = "link-button";
+  out.textContent = "Sign out";
+  out.addEventListener("click", function() {
+    fetch("/auth/logout", { method: "POST", credentials: "same-origin" }).then(function() {
+      if (selectedKey) openPanel(selectedKey);
+    });
+  });
+  panelViewer.appendChild(out);
+}
+
+function showDiff(key, answer) {
+  if (answer.state === "signin") {
+    setNote("Sign in to see the code.", { href: answer.loginUrl, text: "Sign in with GitHub" });
+    return;
+  }
+  if (answer.state === "no-access") {
+    setNote("Your GitHub account cannot read " + answer.repo + ".");
+    showViewer(answer.viewer);
+    return;
+  }
+  if (answer.state !== "ok") {
+    setNote(answer.reason || "The changes are not available.");
+    return;
+  }
+  setNote("");
+  showViewer(answer.viewer);
+  for (var i = 0; i < answer.files.length && i < fileBodies.length; i++) {
+    showFile(key, answer.files[i], elements[key].files[i], fileBodies[i]);
+  }
+}
+
+function message(body, text) {
+  var p = document.createElement("p");
+  p.className = "file-note";
+  p.textContent = text;
+  body.appendChild(p);
+}
+
+function showFile(key, file, ref, body) {
+  body.textContent = "";
+  var bar = document.createElement("div");
+  bar.className = "file-bar";
+  var status = document.createElement("span");
+  status.className = "file-status";
+  status.dataset.status = file.status;
+  status.textContent = file.status;
+  bar.appendChild(status);
+
+  var toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "link-button";
+  toggle.textContent = "Whole file";
+  bar.appendChild(toggle);
+
+  var open = document.createElement("a");
+  open.href = file.url;
+  open.target = "_blank";
+  open.rel = "noopener noreferrer";
+  open.textContent = "GitHub";
+  bar.appendChild(open);
+  body.appendChild(bar);
+
+  var view = document.createElement("div");
+  body.appendChild(view);
+  var whole = false;
+  var wholeAnswer = null;
+
+  function changedLines() {
+    view.textContent = "";
+    if (file.status === "unchanged") return message(view, "This file did not change in this pull request.");
+    if (file.noPatch) return message(view, "GitHub shows no diff for this file: it is binary or too large.");
+    if (!file.hunks.length && file.otherHunks) {
+      return message(view, "No changes in " + (rangeOf(ref) || "these lines") + "; " + file.otherHunks + " elsewhere in the file.");
+    }
+    if (file.otherHunks) message(view, file.otherHunks + " more change" + (file.otherHunks === 1 ? "" : "s") + " elsewhere in the file.");
+    view.appendChild(renderHunks(file.hunks));
+  }
+
+  toggle.addEventListener("click", function() {
+    whole = !whole;
+    toggle.textContent = whole ? "Changed lines" : "Whole file";
+    if (!whole) return changedLines();
+    view.textContent = "";
+    message(view, "Loading the whole file…");
+    (wholeAnswer || (wholeAnswer = getDiff(key, file.path))).then(function(answer) {
+      if (!whole) return;
+      view.textContent = "";
+      if (answer.state !== "ok-full") return message(view, answer.reason || "The file is not available.");
+      if (!answer.lines) return message(view, "The file is larger than this panel will show.");
+      view.appendChild(renderWhole(answer.lines));
+    }, function() {
+      wholeAnswer = null;
+      if (whole) {
+        view.textContent = "";
+        message(view, "The file could not be loaded.");
+      }
+    });
+  });
+
+  changedLines();
+}
+
+// A token is [text] in the default colour, or [text, light, dark, style] where
+// style is 1 italic, 2 bold, 4 underline. Colours travel as CSS variables so the
+// theme switch recolours the code without fetching it again.
+function codeRow(kind, left, right, text, tokens) {
+  var row = document.createElement("div");
+  row.className = "dl" + (kind === "+" ? " dl-add" : kind === "-" ? " dl-del" : "");
+  var a = document.createElement("span");
+  a.className = "ln";
+  a.textContent = left === undefined ? "" : String(left);
+  var b = document.createElement("span");
+  b.className = "ln";
+  b.textContent = right === undefined ? "" : String(right);
+  var sign = document.createElement("span");
+  sign.className = "sign";
+  sign.textContent = kind === " " ? " " : kind;
+  var code = document.createElement("span");
+  code.className = "code";
+  if (tokens && tokens.length) {
+    for (var i = 0; i < tokens.length; i++) {
+      var token = tokens[i];
+      var piece = document.createElement("span");
+      piece.textContent = token[0];
+      if (token.length > 1) {
+        piece.style.setProperty("--shl", token[1]);
+        piece.style.setProperty("--shd", token[2]);
+        if (token[3] & 1) piece.classList.add("tk-i");
+        if (token[3] & 2) piece.classList.add("tk-b");
+        if (token[3] & 4) piece.classList.add("tk-u");
+      }
+      code.appendChild(piece);
+    }
+  } else {
+    code.textContent = text;
+  }
+  row.appendChild(a);
+  row.appendChild(b);
+  row.appendChild(sign);
+  row.appendChild(code);
+  return row;
+}
+
+function renderHunks(hunks) {
+  var box = document.createElement("div");
+  box.className = "diff";
+  for (var h = 0; h < hunks.length; h++) {
+    var header = document.createElement("div");
+    header.className = "dh";
+    header.textContent = hunks[h].header;
+    box.appendChild(header);
+    var lines = hunks[h].lines;
+    for (var l = 0; l < lines.length; l++) box.appendChild(codeRow(lines[l].t, lines[l].o, lines[l].n, lines[l].s, lines[l].h));
+  }
+  return box;
+}
+
+function renderWhole(lines) {
+  var box = document.createElement("div");
+  box.className = "diff";
+  for (var l = 0; l < lines.length; l++) {
+    var line = lines[l];
+    box.appendChild(codeRow(line.t, line.t === "-" ? line.o : undefined, line.n, line.s, line.h));
+  }
+  return box;
+}
+
+function closePanel() {
+  if (!panel || panel.hidden) return false;
+  panel.hidden = true;
+  selectedKey = null;
+  markSelected();
+  return true;
+}
+
+if (panelClose) panelClose.addEventListener("click", closePanel);
+
+// The stage captures the pointer for panning, so a hotspot never sees its own
+// click: the pan and zoom handler reports taps here instead.
+function tapElement(target) {
+  var spot = target && target.closest ? target.closest(".hs") : null;
+  if (spot) openPanel(spot.dataset.el);
+}
+// Enter or Space on a focused hotspot: a click with no pointer behind it.
+document.addEventListener("click", function(e) {
+  if (e.detail !== 0) return;
+  var spot = e.target.closest ? e.target.closest(".hs") : null;
+  if (spot) openPanel(spot.dataset.el);
+}, true);
+
 function showLbDiagram(index) {
   if (index < 0) index = tiles.length - 1;
   if (index >= tiles.length) index = 0;
@@ -1705,6 +2391,7 @@ function showLbDiagram(index) {
 
   if (lbCanvas) {
     lbCanvas.innerHTML = renderTilePicture(tile);
+    attachHotspots(lbCanvas, lbIndex);
   }
 
   requestAnimationFrame(function() {
@@ -1727,6 +2414,7 @@ function closeLightbox() {
 
 if (lb) {
   lb.addEventListener("close", function() {
+    closePanel();
     if (lastActiveElement && typeof lastActiveElement.focus === "function") {
       lastActiveElement.focus();
     }
@@ -1795,7 +2483,9 @@ function applyCvTransform() {
   }
 }
 
-var cvCtrl = wirePanZoom(cvStage, function() { return cvTransform; }, applyCvTransform);
+var cvCtrl = wirePanZoom(cvStage, function() { return cvTransform; }, applyCvTransform, tapElement);
+// The first diagram arrives drawn by the server, so it gets its targets here.
+attachHotspots(cvBody, cvIndex);
 if (currentMode === "canvas") {
   fitCanvas(1.0, true);
   if (cvContainer) cvContainer.classList.add("is-ready");
@@ -1851,6 +2541,7 @@ function showCanvasDiagram(index) {
 
   if (cvBody) {
     cvBody.innerHTML = renderTilePicture(tile);
+    attachHotspots(cvBody, cvIndex);
   }
 
   fitCanvas(1.0, true);
@@ -1894,6 +2585,12 @@ window.addEventListener("keydown", function(e) {
   }
 
   if (e.key === "Escape") {
+    // The panel sits on top of everything, so it is the first thing Esc closes;
+    // preventDefault stops a dialog under it from cancelling on the same key.
+    if (closePanel()) {
+      e.preventDefault();
+      return;
+    }
     if (helpDialog && helpDialog.open) {
       helpDialog.close();
       return;
@@ -2006,10 +2703,14 @@ export const canvasPage = (
     },
   }));
 
+  const elements = clickableElements(canvas.document);
+
   const canvasPayload = {
     canvasId: canvas.id,
     title: mrTitle,
     tiles: tilesData,
+    elements,
+    hotspots: tiles.map((tile) => hotspotsOf(tile, elements)),
   };
 
   const canvasDataJson = JSON.stringify(canvasPayload).replace(/</g, "\\u003c");
@@ -2046,6 +2747,7 @@ ${body}
 ${canvasWorkspace}
 ${LIGHTBOX_HTML}
 ${HELP_DIALOG_HTML}
+${ELEMENT_PANEL_HTML}
 <script id="pr-lens-data" type="application/json">${canvasDataJson}</script>
 <script id="pr-lens-tiles" type="application/json">${tilesJson}</script>
 <script nonce="${nonce}">${INTERACTIVE_WIRING}</script>`,
