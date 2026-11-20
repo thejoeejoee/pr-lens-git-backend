@@ -4,6 +4,18 @@ Kept by [release-please](https://github.com/googleapis/release-please) from the
 conventional-commit subjects on `main`. Everything below 0.3.0 was written by
 hand, because the two releases before it predate that setup.
 
+## [0.8.1](https://github.com/thejoeejoee/pr-lens-git-backend/compare/v0.8.0...v0.8.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **deps:** bump @coldtea/pr-lens-renderer from 0.3.2 to 0.4.1 ([abd2054](https://github.com/thejoeejoee/pr-lens-git-backend/commit/abd2054c980a3f2d3cd78bf5379d2118ff3cef2e))
+* **deps:** bump @coldtea/pr-lens-renderer to 0.4.1 and pr-lens-schema to 0.9.0 ([be76afb](https://github.com/thejoeejoee/pr-lens-git-backend/commit/be76afbd31c91dc113894a10ae38c82375f74231))
+* **deps:** bump marked from 18.1.0 to 18.1.2 ([807eaf1](https://github.com/thejoeejoee/pr-lens-git-backend/commit/807eaf1bd039c15a4bfe7d3fd03473797bf70ba9))
+* **deps:** bump marked from 18.1.0 to 18.1.2 ([76314b2](https://github.com/thejoeejoee/pr-lens-git-backend/commit/76314b2b27f92428ac7d0b76b8180cf81fb836e1))
+* **deps:** bump zod ([857e000](https://github.com/thejoeejoee/pr-lens-git-backend/commit/857e000dd0786e3fb954913ee44abea7856592e1))
+* **deps:** bump zod from 4.6.5 to 4.6.7 in the npm_and_yarn group across 1 directory ([9394cd6](https://github.com/thejoeejoee/pr-lens-git-backend/commit/9394cd6f8ebbb4e5d0d11dfbd6d74b8a9c3e5d0c))
+
 ## [0.8.0](https://github.com/thejoeejoee/pr-lens-git-backend/compare/v0.7.0...v0.8.0) (2026-10-13)
 
 
